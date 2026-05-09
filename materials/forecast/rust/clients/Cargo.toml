@@ -8,3 +8,5 @@ rust_decimal.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 reqwest = "0.13.2"
+models = { path = "../models" }
+chrono.workspace = true

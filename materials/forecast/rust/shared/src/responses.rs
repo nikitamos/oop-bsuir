@@ -1,6 +1,6 @@
 use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
-use utoipa::{ToResponse, ToSchema};
+use utoipa::{IntoResponses, ToResponse, ToSchema};
 
 #[derive(Serialize, Deserialize, ToResponse, ToSchema)]
 pub struct StatusResponse {
@@ -22,8 +22,21 @@ where
 {
     #[schema(examples(200))]
     pub code: u16,
-    pub message: String,
+    pub message: Option<&'static str>,
     pub data: T,
+}
+
+impl<T> SuccessResponse<T>
+where
+    T: ToSchema + Serialize + 'static,
+{
+    pub fn new(code: StatusCode, data: T) -> Self {
+        Self {
+            code: code.as_u16(),
+            message: code.canonical_reason(),
+            data,
+        }
+    }
 }
 
 impl<T> IntoResponse for SuccessResponse<T>

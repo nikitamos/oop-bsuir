@@ -9,36 +9,186 @@
     "version": "1.0"
   },
   "paths": {
-    "/api/v1/weather": {
+    "/api/v2/forecast": {
       "get": {
-        "tags": [
-          "weather"
-        ],
-        "summary": "Get Current Weather",
-        "description": "Returns current weather for given coordinates",
-        "operationId": "handle_get_current_weather",
+        "operationId": "handle_get_forecast",
         "parameters": [
           {
-            "name": "lat",
+            "name": "location",
             "in": "query",
-            "description": "Latitude",
             "required": true,
             "schema": {
-              "type": "string",
-              "default": "18.300231990440125"
+              "$ref": "#/components/schemas/LocationSpec"
             }
           },
           {
-            "name": "lon",
+            "name": "provider",
             "in": "query",
-            "description": "Longitude",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/WeatherProvider"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Date in DD-MM-YYYY format",
             "required": true,
             "schema": {
-              "type": "string",
-              "default": "-64.8251590359234"
+              "type": "string"
+            },
+            "example": "09-05-2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_CurrentWeather"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/forecast/multi": {
+      "post": {
+        "operationId": "handle_get_multi_forecast",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MultiForecastRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_Forecast"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/weather2": {
+      "get": {
+        "operationId": "handle_get_current_weather2",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/LocationSpec"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WeatherProvider"
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_CurrentWeather"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/weather2/multi": {
+      "post": {
+        "operationId": "handle_get_multi_weather",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MultiWeatherRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "",
@@ -90,6 +240,92 @@
           }
         }
       },
+      "Forecast": {
+        "type": "object",
+        "required": [
+          "temperature",
+          "wind_direction",
+          "humidity",
+          "precipitation"
+        ],
+        "properties": {
+          "humidity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "precipitation": {
+            "type": "string"
+          },
+          "temperature": {
+            "type": "string"
+          },
+          "wind_direction": {
+            "type": "string"
+          }
+        }
+      },
+      "LocationSpec": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "properties": {
+              "lat": {
+                "type": "string"
+              },
+              "lon": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "MultiForecastRequest": {
+        "type": "object",
+        "required": [
+          "locations",
+          "date"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "example": "09-05-2026"
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocationSpec"
+            }
+          },
+          "provider": {
+            "$ref": "#/components/schemas/WeatherProvider"
+          }
+        }
+      },
+      "MultiWeatherRequest": {
+        "type": "object",
+        "required": [
+          "locations"
+        ],
+        "properties": {
+          "locations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocationSpec"
+            }
+          },
+          "provider": {
+            "$ref": "#/components/schemas/WeatherProvider"
+          }
+        }
+      },
       "StatusResponse": {
         "type": "object",
         "required": [
@@ -114,7 +350,6 @@
         "type": "object",
         "required": [
           "code",
-          "message",
           "data"
         ],
         "properties": {
@@ -141,9 +376,67 @@
             }
           },
           "message": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
+      },
+      "SuccessResponse_Forecast": {
+        "type": "object",
+        "required": [
+          "code",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32",
+            "examples": [
+              200
+            ],
+            "minimum": 0
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "temperature",
+              "wind_direction",
+              "humidity",
+              "precipitation"
+            ],
+            "properties": {
+              "humidity": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              },
+              "precipitation": {
+                "type": "string"
+              },
+              "temperature": {
+                "type": "string"
+              },
+              "wind_direction": {
+                "type": "string"
+              }
+            }
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "WeatherProvider": {
+        "type": "string",
+        "enum": [
+          "open_weather_map",
+          "google"
+        ]
       }
     }
   }

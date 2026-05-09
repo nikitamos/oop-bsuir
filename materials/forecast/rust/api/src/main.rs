@@ -20,7 +20,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 async fn serve() -> Result<(), Box<dyn Error>> {
     let (router, doc) = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .nest("/api/v1", weather::routers())
+        // .nest("/api/v1", weather::routers())
+        .nest("/api/v2", api::routes_v2())
         .split_for_parts();
     let router = router
         .merge(SwaggerUi::new("/swagger/index.html").url("/api-docs/openapi.json", doc.clone()));

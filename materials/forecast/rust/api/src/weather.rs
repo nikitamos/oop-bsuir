@@ -1,48 +1,18 @@
+use super::SingleCurrentWeatherQuery;
 use axum::{
+    Json,
     extract::{Query, State, rejection::QueryRejection},
     http::StatusCode,
     response::IntoResponse,
 };
-use clients::OpenWeatherClient;
-use controllers::weather::CurrentWeatherController;
 use models::weather::CurrentWeather;
-use rust_decimal::Decimal;
-use serde::Deserialize;
-use shared::{
-    responses::{self, StatusResponse, SuccessResponse},
-    utils,
-};
-use utoipa::{IntoParams, ToSchema};
+use shared::responses::{self, StatusResponse, SuccessResponse};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-#[derive(Clone)]
-pub struct WeatherHandler {
-    pub controller: CurrentWeatherController<OpenWeatherClient>,
-}
-
-impl WeatherHandler {
-    pub fn new() -> WeatherHandler {
-        WeatherHandler {
-            controller: controllers::weather::CurrentWeatherController::new(
-                OpenWeatherClient::new(
-                    utils::getenv("OPENWEATHER_API_KEY", String::new()),
-                    utils::getenv("OPENWEATHER_BASE_URL", String::new()),
-                ),
-            ),
-        }
-    }
-}
-
-#[derive(Deserialize, IntoParams, ToSchema)]
-#[into_params(parameter_in=Query)]
-pub struct GetCurrentWeatherQuery {
-    /// Latitude
-    #[param(default = "18.300231990440125")]
-    lat: Decimal,
-    /// Longitude
-    #[param(default = "-64.8251590359234")]
-    lon: Decimal,
-}
+use crate::{
+    GetCurrentWeatherQuery, MultiForecastRequest, MultiWeatherRequest, SingleForecastQuery,
+    WeatherHandler,
+};
 
 pub fn routers() -> OpenApiRouter {
     OpenApiRouter::default()
@@ -75,16 +45,44 @@ pub async fn handle_get_current_weather(
     }
     let Query(GetCurrentWeatherQuery { lat, lon }) = query.unwrap();
     match h.controller.get_current_weather(lat, lon).await {
-        Ok(data) => responses::SuccessResponse {
-            code: StatusCode::OK.as_u16(),
-            message: "Success".to_owned(),
-            data,
-        }
-        .into_response(),
+        Ok(data) => responses::SuccessResponse::new(StatusCode::OK, data).into_response(),
         Err(err) => responses::StatusResponse {
             code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             message: err.to_string(),
         }
         .into_response(),
     }
+}
+
+#[utoipa::path(get,
+    path = "/weather2",
+    params(SingleCurrentWeatherQuery),
+    responses(
+        (status=200, body=SuccessResponse<CurrentWeather>),
+        (status=400, body=StatusResponse),
+        (status=500, body=StatusResponse)
+    )
+)]
+#[axum::debug_handler]
+pub async fn handle_get_current_weather2(
+    State(h): State<WeatherHandler>,
+    query: Result<Query<SingleCurrentWeatherQuery>, QueryRejection>,
+) -> axum::response::Response {
+    todo!()
+}
+
+#[utoipa::path(post,
+    path = "/weather2/multi",
+    request_body = MultiWeatherRequest,
+    responses(
+        (status=200, body=SuccessResponse<CurrentWeather>),
+        (status=400, body=StatusResponse),
+        (status=500, body=StatusResponse)
+    )
+)]
+pub async fn handle_get_multi_weather(
+    State(h): State<WeatherHandler>,
+    Json(x): Json<MultiWeatherRequest>,
+) -> axum::response::Response {
+    todo!()
 }
