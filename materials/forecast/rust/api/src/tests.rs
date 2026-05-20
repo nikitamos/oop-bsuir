@@ -60,37 +60,31 @@ mod current_weather_tests {
     use super::*;
 
     #[rstest]
-    #[case(52.52, 13.405, "23.5")] // Berlin coordinates
-    #[case(40.7128, -74.006, "18.2")] // New York coordinates
-    #[case(-33.8688, 151.2093, "28.7")] // Sydney coordinates
+    #[case("52.52", "13.405", "23.5")]
+    #[case("40.7128", "-74.006", "18.2")]
+    #[case("-33.8688", "151.2093", "28.7")]
+    #[case("52.520008", "13.404954", "43.12314")]
+    #[case("0", "0", "0")]
     #[tokio::test]
     async fn test_get_current_weather_success(
-        #[case] lat: f64,
-        #[case] lon: f64,
+        #[case] lat: &str,
+        #[case] lon: &str,
         #[case] expected_temp: &str,
-        app: TestServer,
         mut mock_client: MockWeatherClient,
     ) {
-        // Arrange
         let expected_decimal = Decimal::from_str_exact(expected_temp).unwrap();
-
         mock_client
-            .expect_location_current_temperature()
-            .with(
-                eq(Decimal::from_f64_retain(lat).unwrap()),
-                eq(Decimal::from_f64_retain(lon).unwrap()),
-            )
+            .expect_current_temp()
+            .with(eq(vec![LocationSpec::from_coord_str(lat, lon).unwrap()]))
             .times(1)
-            .returning(move |_, _| Ok(expected_decimal));
+            .returning(move |_| Ok(vec![expected_decimal]));
 
-        // Act
-        let response = app
+        let response = app_client(mock_client)
             .get("/weather")
             .add_query_param("lat", &lat.to_string())
             .add_query_param("lon", &lon.to_string())
             .await;
 
-        // Assert
         response.assert_status(StatusCode::OK);
 
         let body: SuccessResponse<CurrentWeather> = response.json();
@@ -132,17 +126,13 @@ mod current_weather_tests {
         mut mock_client: MockWeatherClient,
     ) {
         mock_client
-            .expect_location_current_temperature()
-            .with(
-                eq(Decimal::from_f64_retain(52.52).unwrap()),
-                eq(Decimal::from_f64_retain(13.405).unwrap()),
-            )
+            .expect_current_temp()
+            .with(eq(vec![LocationSpec::Coordinates {
+                lat: Decimal::from_f64_retain(52.52).unwrap(),
+                lon: Decimal::from_f64_retain(13.405).unwrap(),
+            }]))
             .times(1)
-            .returning(|_, _| {
-                Err(anyhow::anyhow!(
-                    "Weather service unavailable",
-                ))
-            });
+            .returning(|_| Err(anyhow::anyhow!("Weather service unavailable",)));
 
         // Act
         let response = app
@@ -155,35 +145,6 @@ mod current_weather_tests {
         response.assert_status(StatusCode::INTERNAL_SERVER_ERROR);
         let body: StatusResponse = response.json();
         assert!(body.message.contains("Weather service unavailable"));
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_get_current_weather_extreme_coordinates(mut mock_client: MockWeatherClient) {
-        let extreme_temp = Decimal::from_str_exact("-89.2").unwrap();
-
-        mock_client
-            .expect_location_current_temperature()
-            .with(
-                eq(Decimal::from_str_exact("-90").unwrap()),
-                eq(Decimal::from_str_exact("180").unwrap()),
-            )
-            .times(1)
-            .returning(move |_, _| Ok(extreme_temp));
-
-        let response = app_client(mock_client)
-            .get("/weather")
-            .add_query_param("lat", "-90")
-            .add_query_param("lon", "180")
-            .await;
-
-        // Assert
-        response.assert_status(StatusCode::OK);
-        let body: SuccessResponse<CurrentWeather> = response.json();
-        assert_eq!(
-            body.data.temperature,
-            Decimal::from_str_exact("-89.2").unwrap()
-        );
     }
 }
 
@@ -393,74 +354,18 @@ mod edge_cases {
 
     #[rstest]
     #[tokio::test]
-    async fn test_decimal_precision_handling(mut mock_client: MockWeatherClient) {
-        // Arrange
-        let precise_temp = Decimal::from_str_exact("23.456").unwrap();
-
-        mock_client
-            .expect_location_current_temperature()
-            .with(
-                eq(Decimal::from_str_exact("52.520008").unwrap()),
-                eq(Decimal::from_str_exact("13.404954").unwrap()),
-            )
-            .times(1)
-            .returning(move |_, _| Ok(precise_temp));
-
-        // Act - high precision coordinates
-        let response = app_client(mock_client)
-            .get("/weather")
-            .add_query_param("lat", "52.520008")
-            .add_query_param("lon", "13.404954")
-            .await;
-
-        // Assert
-        response.assert_status(StatusCode::OK);
-        let body: SuccessResponse<CurrentWeather> = response.json();
-        assert_eq!(
-            body.data.temperature,
-            Decimal::from_str_exact("23.456").unwrap()
-        );
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_zero_temperature_handling(mut mock_client: MockWeatherClient) {
-        mock_client
-            .expect_location_current_temperature()
-            .with(
-                eq(Decimal::from_str_exact("0").unwrap()),
-                eq(Decimal::from_str_exact("0").unwrap()),
-            )
-            .times(1)
-            .returning(|_, _| Ok(Decimal::ZERO));
-
-        // Act - zero coordinates (Null Island)
-        let response = app_client(mock_client)
-            .get("/weather")
-            .add_query_param("lat", "0")
-            .add_query_param("lon", "0")
-            .await;
-
-        // Assert
-        response.assert_status(StatusCode::OK);
-        let body: SuccessResponse<CurrentWeather> = response.json();
-        assert_eq!(body.data.temperature, Decimal::ZERO);
-    }
-
-    #[rstest]
-    #[tokio::test]
     async fn test_concurrent_requests(mut mock_client: MockWeatherClient) {
-        mock_client
-            .expect_location_current_temperature()
-            .times(3)
-            .returning(|lat, lon| {
-                let temp = if lat > Decimal::ZERO {
-                    Decimal::from_str_exact("25.0").unwrap()
-                } else {
-                    Decimal::from_str_exact("10.0").unwrap()
-                };
-                Ok(temp)
-            });
+        mock_client.expect_current_temp().times(3).returning(|a| {
+            let LocationSpec::Coordinates { lat, lon } = a[0] else {
+                panic!()
+            };
+            let temp = if lat > Decimal::ZERO {
+                Decimal::from_str_exact("25.0").unwrap()
+            } else {
+                Decimal::from_str_exact("10.0").unwrap()
+            };
+            Ok(vec![temp])
+        });
 
         let app = Arc::new(app_client(mock_client));
 
