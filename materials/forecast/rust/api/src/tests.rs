@@ -1,4 +1,4 @@
-// tests/weather_handlers_test.rs
+#![coverage(off)]
 use axum::http::StatusCode;
 use axum_test::TestServer;
 use mockall::predicate::*;
@@ -21,16 +21,16 @@ mock! {
             &self,
             lat: Decimal,
             lon: Decimal,
-        ) -> Result<Decimal, Box<dyn std::error::Error>>;
+        ) -> anyhow::Result<Decimal>;
         async fn current_temp(
             &self,
             locations: &[LocationSpec],
-        ) -> Result<Vec<Decimal>, Box<dyn std::error::Error>>;
+        ) -> anyhow::Result<Vec<Decimal>>;
         async fn forecast(
             &self,
             locations: &[LocationSpec],
             date: NaiveDate,
-        ) -> Result<Vec<Forecast>, Box<dyn std::error::Error>>;
+        ) -> anyhow::Result<Vec<Forecast>>;
     }
 }
 
@@ -139,10 +139,9 @@ mod current_weather_tests {
             )
             .times(1)
             .returning(|_, _| {
-                Err(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Err(anyhow::anyhow!(
                     "Weather service unavailable",
-                )))
+                ))
             });
 
         // Act
@@ -160,22 +159,19 @@ mod current_weather_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_get_current_weather_extreme_coordinates(
-        app: TestServer,
-        mut mock_client: MockWeatherClient,
-    ) {
+    async fn test_get_current_weather_extreme_coordinates(mut mock_client: MockWeatherClient) {
         let extreme_temp = Decimal::from_str_exact("-89.2").unwrap();
 
         mock_client
             .expect_location_current_temperature()
             .with(
-                eq(Decimal::from_i128_with_scale(-90, 0)),
-                eq(Decimal::from_i128_with_scale(180, 0)),
+                eq(Decimal::from_str_exact("-90").unwrap()),
+                eq(Decimal::from_str_exact("180").unwrap()),
             )
             .times(1)
             .returning(move |_, _| Ok(extreme_temp));
 
-        let response = app
+        let response = app_client(mock_client)
             .get("/weather")
             .add_query_param("lat", "-90")
             .add_query_param("lon", "180")
@@ -352,10 +348,7 @@ mod forecast_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_get_multi_forecast_empty_locations(
-        app: TestServer,
-        mut mock_client: MockWeatherClient,
-    ) {
+    async fn test_get_multi_forecast_empty_locations(mut mock_client: MockWeatherClient) {
         mock_client
             .expect_forecast()
             .with(eq(vec![]), eq(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()))
@@ -368,7 +361,10 @@ mod forecast_tests {
         });
 
         // Act
-        let response = app.post("/forecast/multi").json(&request_body).await;
+        let response = app_client(mock_client)
+            .post("/forecast/multi")
+            .json(&request_body)
+            .await;
 
         // Assert
         response.assert_status(StatusCode::OK);
@@ -397,9 +393,8 @@ mod edge_cases {
 
     #[rstest]
     #[tokio::test]
-    async fn test_decimal_precision_handling(app: TestServer) {
+    async fn test_decimal_precision_handling(mut mock_client: MockWeatherClient) {
         // Arrange
-        let mut mock_client = MockWeatherClient::new();
         let precise_temp = Decimal::from_str_exact("23.456").unwrap();
 
         mock_client
@@ -412,7 +407,7 @@ mod edge_cases {
             .returning(move |_, _| Ok(precise_temp));
 
         // Act - high precision coordinates
-        let response = app
+        let response = app_client(mock_client)
             .get("/weather")
             .add_query_param("lat", "52.520008")
             .add_query_param("lon", "13.404954")
@@ -429,10 +424,7 @@ mod edge_cases {
 
     #[rstest]
     #[tokio::test]
-    async fn test_zero_temperature_handling(app: TestServer) {
-        // Arrange
-        let mut mock_client = MockWeatherClient::new();
-
+    async fn test_zero_temperature_handling(mut mock_client: MockWeatherClient) {
         mock_client
             .expect_location_current_temperature()
             .with(
@@ -443,7 +435,7 @@ mod edge_cases {
             .returning(|_, _| Ok(Decimal::ZERO));
 
         // Act - zero coordinates (Null Island)
-        let response = app
+        let response = app_client(mock_client)
             .get("/weather")
             .add_query_param("lat", "0")
             .add_query_param("lon", "0")
@@ -457,10 +449,7 @@ mod edge_cases {
 
     #[rstest]
     #[tokio::test]
-    async fn test_concurrent_requests() {
-        // Arrange
-        let mut mock_client = MockWeatherClient::new();
-
+    async fn test_concurrent_requests(mut mock_client: MockWeatherClient) {
         mock_client
             .expect_location_current_temperature()
             .times(3)
@@ -490,71 +479,5 @@ mod edge_cases {
         for response in set.join_all().await {
             response.assert_status(StatusCode::OK);
         }
-    }
-}
-
-#[cfg(false)]
-mod integration_scenarios {
-    use super::*;
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_weather_workflow_coordinates_to_forecast() {
-        // Arrange
-        let mut mock_client = MockWeatherClient::new();
-
-        // Mock current weather
-        mock_handler
-            .expect_location_current_temperature()
-            .with(
-                eq(Decimal::from_str_exact("48.8566").unwrap()),
-                eq(Decimal::from_str_exact("2.3522").unwrap()),
-            )
-            .times(1)
-            .returning(|_, _| Ok(Decimal::from_str_exact("20.5").unwrap()));
-
-        // Mock forecast
-        mock_handler
-            .expect_forecast()
-            .with(
-                eq(vec![LocationSpec::City("Paris".to_string())]),
-                eq(NaiveDate::from_ymd_opt(2024, 7, 14).unwrap()),
-            )
-            .times(1)
-            .returning(|_, _| {
-                Ok(vec![Forecast {
-                    temperature: Decimal::from_str_exact("28.0").unwrap(),
-                    wind_direction: "W".to_string(),
-                    humidity: 40,
-                    precipitation: Decimal::from_str_exact("0.0").unwrap(),
-                }])
-            });
-
-        let app = create_test_app(mock_handler);
-
-        // Act - Get current weather
-        let weather_response = app
-            .get("/weather")
-            .add_query_param("lat", "48.8566")
-            .add_query_param("lon", "2.3522")
-            .await;
-
-        weather_response.assert_status(StatusCode::OK);
-
-        // Act - Get forecast for Bastille Day
-        let forecast_response = app
-            .get("/forecast")
-            .add_query_param("city", "Paris")
-            .add_query_param("date", "2024-07-14")
-            .await;
-
-        // Assert
-        forecast_response.assert_status(StatusCode::OK);
-        let forecast_body: SuccessResponse<Vec<Forecast>> = forecast_response.json();
-        assert!(!forecast_body.data.is_empty());
-        assert_eq!(
-            forecast_body.data[0].temperature,
-            Decimal::from_str_exact("28.0").unwrap()
-        );
     }
 }

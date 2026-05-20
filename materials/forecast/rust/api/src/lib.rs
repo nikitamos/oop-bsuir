@@ -1,3 +1,4 @@
+#![feature(coverage_attribute)]
 use std::sync::Arc;
 
 use axum::extract::FromRef;
