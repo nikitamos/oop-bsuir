@@ -18,22 +18,22 @@ impl IntoResponse for StatusResponse {
 #[derive(Serialize, Deserialize, ToResponse, ToSchema)]
 pub struct SuccessResponse<T>
 where
-    T: ToSchema + Serialize + 'static,
+    T: ToSchema + Serialize,
 {
     #[schema(examples(200))]
     pub code: u16,
-    pub message: Option<&'static str>,
+    pub message: Option<String>,
     pub data: T,
 }
 
 impl<T> SuccessResponse<T>
 where
-    T: ToSchema + Serialize + 'static,
+    T: ToSchema + Serialize,
 {
     pub fn new(code: StatusCode, data: T) -> Self {
         Self {
             code: code.as_u16(),
-            message: code.canonical_reason(),
+            message: code.canonical_reason().map(ToString::to_string),
             data,
         }
     }
@@ -41,7 +41,7 @@ where
 
 impl<T> IntoResponse for SuccessResponse<T>
 where
-    T: ToSchema + Serialize + 'static,
+    T: ToSchema + Serialize,
 {
     fn into_response(self) -> axum::response::Response {
         (StatusCode::from_u16(self.code).unwrap(), Json(self)).into_response()

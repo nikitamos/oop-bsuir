@@ -1,15 +1,13 @@
-use std::error::Error;
-
 use clients::WeatherDataClient;
 use models::weather::CurrentWeather;
 use rust_decimal::Decimal;
 
 #[derive(Clone)]
-pub struct CurrentWeatherController<T: WeatherDataClient + Clone> {
+pub struct CurrentWeatherController<T: WeatherDataClient> {
     pub client: T,
 }
 
-impl<T: WeatherDataClient + Clone> CurrentWeatherController<T> {
+impl<T: WeatherDataClient> CurrentWeatherController<T> {
     pub fn new(client: T) -> Self {
         CurrentWeatherController { client }
     }
@@ -17,7 +15,7 @@ impl<T: WeatherDataClient + Clone> CurrentWeatherController<T> {
         &self,
         lat: Decimal,
         lon: Decimal,
-    ) -> Result<CurrentWeather, Box<dyn Error>> {
+    ) -> anyhow::Result<CurrentWeather> {
         Ok(CurrentWeather {
             temperature: self.client.location_current_temperature(lat, lon).await?,
         })

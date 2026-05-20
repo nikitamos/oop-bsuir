@@ -5,6 +5,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use clients::WeatherDataClient;
 use models::weather::CurrentWeather;
 use shared::responses::{self, StatusResponse, SuccessResponse};
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -32,8 +33,8 @@ pub fn routers() -> OpenApiRouter {
          (status=500, body=StatusResponse)
     ),
 )]
-pub async fn handle_get_current_weather(
-    State(h): State<WeatherHandler>,
+pub async fn handle_get_current_weather<C: WeatherDataClient>(
+    State(h): State<WeatherHandler<C>>,
     query: Result<Query<GetCurrentWeatherQuery>, QueryRejection>,
 ) -> axum::response::Response {
     if query.is_err() {
@@ -63,9 +64,8 @@ pub async fn handle_get_current_weather(
         (status=500, body=StatusResponse)
     )
 )]
-#[axum::debug_handler]
-pub async fn handle_get_current_weather2(
-    State(h): State<WeatherHandler>,
+pub async fn handle_get_current_weather2<C: WeatherDataClient>(
+    State(h): State<WeatherHandler<C>>,
     query: Result<Query<SingleCurrentWeatherQuery>, QueryRejection>,
 ) -> axum::response::Response {
     todo!()
@@ -80,8 +80,8 @@ pub async fn handle_get_current_weather2(
         (status=500, body=StatusResponse)
     )
 )]
-pub async fn handle_get_multi_weather(
-    State(h): State<WeatherHandler>,
+pub async fn handle_get_multi_weather<C: WeatherDataClient>(
+    State(h): State<WeatherHandler<C>>,
     Json(x): Json<MultiWeatherRequest>,
 ) -> axum::response::Response {
     todo!()

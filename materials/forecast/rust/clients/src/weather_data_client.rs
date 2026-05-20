@@ -2,7 +2,10 @@ use std::error::Error;
 
 use chrono::prelude::*;
 use models::weather::{Forecast, LocationSpec};
+use reqwest::StatusCode;
 use rust_decimal::Decimal;
+
+use crate::BadStatusError;
 
 #[allow(async_fn_in_trait)]
 pub trait WeatherDataClient {
@@ -10,18 +13,11 @@ pub trait WeatherDataClient {
         &self,
         lat: Decimal,
         lon: Decimal,
-    ) -> Result<Decimal, Box<dyn std::error::Error>>;
-    async fn current_temp(
-        &self,
-        locations: &[LocationSpec],
-    ) -> Result<Vec<Decimal>, Box<dyn Error>> {
-        todo!()
-    }
+    ) -> anyhow::Result<Decimal>;
+    async fn current_temp(&self, locations: &[LocationSpec]) -> anyhow::Result<Vec<Decimal>>;
     async fn forecast(
         &self,
         locations: &[LocationSpec],
         date: NaiveDate,
-    ) -> Result<Vec<Forecast>, Box<dyn Error>> {
-        todo!()
-    }
+    ) -> anyhow::Result<Vec<Forecast>>;
 }

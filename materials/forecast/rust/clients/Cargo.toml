@@ -10,3 +10,4 @@ serde_json.workspace = true
 reqwest = "0.13.2"
 models = { path = "../models" }
 chrono.workspace = true
+anyhow = "1.0.102"

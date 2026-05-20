@@ -2,10 +2,9 @@ use axum::{
     Json,
     extract::{Query, State, rejection::QueryRejection},
 };
+use clients::WeatherDataClient;
 use models::weather::{CurrentWeather, Forecast};
-use shared::{
-    responses::{StatusResponse, SuccessResponse},
-};
+use shared::responses::{StatusResponse, SuccessResponse};
 
 use crate::{MultiForecastRequest, SingleForecastQuery, WeatherHandler};
 
@@ -18,8 +17,8 @@ use crate::{MultiForecastRequest, SingleForecastQuery, WeatherHandler};
         (status=500, body=StatusResponse)
     )
 )]
-pub async fn handle_get_forecast(
-    State(h): State<WeatherHandler>,
+pub async fn handle_get_forecast<C: WeatherDataClient>(
+    State(h): State<WeatherHandler<C>>,
     query: Result<Query<SingleForecastQuery>, QueryRejection>,
 ) -> axum::response::Response {
     todo!()
@@ -35,8 +34,8 @@ pub async fn handle_get_forecast(
     )
 )]
 // #[axum::debug_handler]
-pub async fn handle_get_multi_forecast(
-    State(h): State<WeatherHandler>,
+pub async fn handle_get_multi_forecast<C: WeatherDataClient>(
+    State(h): State<WeatherHandler<C>>,
     Json(x): Json<MultiForecastRequest>,
 ) -> axum::response::Response {
     todo!()

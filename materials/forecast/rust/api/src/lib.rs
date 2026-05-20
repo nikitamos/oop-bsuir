@@ -1,4 +1,7 @@
-use clients::OpenWeatherClient;
+use std::sync::Arc;
+
+use axum::extract::FromRef;
+use clients::{OpenWeatherClient, WeatherDataClient};
 use controllers::weather::CurrentWeatherController;
 use models::weather::LocationSpec;
 use rust_decimal::Decimal;
@@ -66,29 +69,47 @@ pub struct MultiForecastRequest {
     date: String,
 }
 
-pub fn routes_v2() -> OpenApiRouter {
+pub fn routes_v2<C>(handler: WeatherHandler<C>) -> OpenApiRouter
+where
+    C: WeatherDataClient + Send + Sync + 'static,
+{
     OpenApiRouter::default()
+        .routes(routes!(weather::handle_get_current_weather))
         .routes(routes!(weather::handle_get_current_weather2))
         .routes(routes!(weather::handle_get_multi_weather))
         .routes(routes!(forecast::handle_get_forecast))
         .routes(routes!(forecast::handle_get_multi_forecast))
-        .with_state(WeatherHandler::new())
+        .with_state(handler)
 }
 
-#[derive(Clone)]
-pub struct WeatherHandler {
-    pub controller: CurrentWeatherController<OpenWeatherClient>,
+pub struct WeatherHandler<C: WeatherDataClient> {
+    pub controller: Arc<CurrentWeatherController<C>>,
 }
 
-impl WeatherHandler {
-    pub fn new() -> WeatherHandler {
-        WeatherHandler {
-            controller: controllers::weather::CurrentWeatherController::new(
-                OpenWeatherClient::new(
-                    utils::getenv("OPENWEATHER_API_KEY", String::new()),
-                    utils::getenv("OPENWEATHER_BASE_URL", String::new()),
-                ),
-            ),
+impl<C: WeatherDataClient> Clone for WeatherHandler<C> {
+    fn clone(&self) -> Self {
+        Self {
+            controller: Arc::clone(&self.controller),
         }
     }
 }
+
+impl<C: WeatherDataClient> WeatherHandler<C> {
+    pub fn new_with_client(client: C) -> Self {
+        Self {
+            controller: Arc::new(CurrentWeatherController { client }),
+        }
+    }
+}
+
+impl WeatherHandler<OpenWeatherClient> {
+    pub fn new() -> Self {
+        Self::new_with_client(OpenWeatherClient::new(
+            utils::getenv("OPENWEATHER_API_KEY", String::new()),
+            utils::getenv("OPENWEATHER_BASE_URL", String::new()),
+        ))
+    }
+}
+
+#[cfg(test)]
+pub mod tests;

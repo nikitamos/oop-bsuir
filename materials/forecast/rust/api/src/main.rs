@@ -1,6 +1,6 @@
 use std::{error::Error, path::PathBuf};
 
-use api::weather;
+use api::{WeatherHandler, weather};
 use shared::utils::getenv;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
@@ -10,7 +10,7 @@ use utoipa_swagger_ui::SwaggerUi;
 #[openapi(info(title = "Whether Example API", version = "1.0"))]
 struct ApiDoc;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
     dotenvy::dotenv()?;
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -18,10 +18,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .block_on(serve())
 }
 
-async fn serve() -> Result<(), Box<dyn Error>> {
+async fn serve() -> anyhow::Result<()> {
     let (router, doc) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         // .nest("/api/v1", weather::routers())
-        .nest("/api/v2", api::routes_v2())
+        .nest("/api/v2", api::routes_v2(WeatherHandler::new()))
         .split_for_parts();
     let router = router
         .merge(SwaggerUi::new("/swagger/index.html").url("/api-docs/openapi.json", doc.clone()));
