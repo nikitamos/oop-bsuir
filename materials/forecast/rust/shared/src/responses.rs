@@ -1,12 +1,27 @@
 use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoResponses, ToResponse, ToSchema};
+use utoipa::{ToResponse, ToSchema};
 
 #[derive(Serialize, Deserialize, ToResponse, ToSchema)]
 pub struct StatusResponse {
     #[schema(examples(0))]
     pub code: u16,
     pub message: String,
+}
+
+impl StatusResponse {
+    pub fn new(status: StatusCode, message: &str) -> Self {
+        Self {
+            code: status.as_u16(),
+            message: message.to_string(),
+        }
+    }
+    pub fn new_owned(status: StatusCode, message: String) -> Self {
+        Self {
+            code: status.as_u16(),
+            message: message,
+        }
+    }
 }
 
 impl IntoResponse for StatusResponse {

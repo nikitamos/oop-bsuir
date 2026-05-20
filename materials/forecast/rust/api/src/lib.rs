@@ -101,6 +101,12 @@ impl<C: WeatherDataClient> WeatherHandler<C> {
             controller: Arc::new(CurrentWeatherController { client }),
         }
     }
+    pub fn dispatch_provider(&self, provider: WeatherProvider) -> &CurrentWeatherController<C> {
+        match provider {
+            WeatherProvider::OpenWeatherMap => &self.controller,
+            WeatherProvider::Google => todo!(),
+        }
+    }
 }
 
 impl WeatherHandler<OpenWeatherClient> {

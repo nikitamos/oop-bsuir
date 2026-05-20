@@ -68,7 +68,18 @@ pub async fn handle_get_current_weather2<C: WeatherDataClient>(
     State(h): State<WeatherHandler<C>>,
     query: Result<Query<SingleCurrentWeatherQuery>, QueryRejection>,
 ) -> axum::response::Response {
-    todo!()
+    let params = match query {
+        Ok(Query(q)) => q,
+        Err(err) => {
+            return StatusResponse::new(err.status(), "invalid locations").into_response();
+        }
+    };
+    h.dispatch_provider(params.provider)
+        .get_current_weather_at(&[params.location])
+        .await
+        .map(|mut v| SuccessResponse::new(StatusCode::OK, v.remove(0)))
+        .map_err(|e| StatusResponse::new_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        .into_response()
 }
 
 #[utoipa::path(post,

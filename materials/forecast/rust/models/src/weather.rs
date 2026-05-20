@@ -23,3 +23,12 @@ pub enum LocationSpec {
     Coordinates { lat: Decimal, lon: Decimal },
     City(String),
 }
+
+impl LocationSpec {
+    pub fn from_coord_str(lat: &str, lon: &str) -> Option<Self> {
+        Decimal::from_str_exact(lat)
+            .ok()
+            .zip(Decimal::from_str_exact(lon).ok())
+            .map(|(lat, lon)| Self::Coordinates { lat, lon })
+    }
+}
