@@ -13,10 +13,7 @@ use models::weather::CurrentWeather;
 use shared::responses::{self, StatusResponse, SuccessResponse};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::{
-    GetCurrentWeatherQuery, MultiForecastRequest, MultiWeatherRequest, SingleForecastQuery,
-    WeatherHandler,
-};
+use crate::{GetCurrentWeatherQuery, MultiWeatherRequest, WeatherHandler, accept};
 
 pub fn routers() -> OpenApiRouter {
     OpenApiRouter::default()
@@ -40,14 +37,7 @@ pub async fn handle_get_current_weather<C: WeatherDataClient>(
     State(h): State<WeatherHandler<C>>,
     query: Result<Query<GetCurrentWeatherQuery>, QueryRejection>,
 ) -> axum::response::Response {
-    if query.is_err() {
-        return responses::StatusResponse {
-            code: StatusCode::BAD_REQUEST.as_u16(),
-            message: "invalid coordinates".to_string(),
-        }
-        .into_response();
-    }
-    let Query(GetCurrentWeatherQuery { lat, lon }) = query.unwrap();
+    let GetCurrentWeatherQuery { lat, lon } = accept!(Query from query);
     match h.controller.get_current_weather(lat, lon).await {
         Ok(data) => responses::SuccessResponse::new(StatusCode::OK, data).into_response(),
         Err(err) => responses::StatusResponse {
@@ -71,12 +61,7 @@ pub async fn handle_get_current_weather2<C: WeatherDataClient>(
     State(h): State<WeatherHandler<C>>,
     query: Result<Query<SingleCurrentWeatherQuery>, QueryRejection>,
 ) -> axum::response::Response {
-    let params = match query {
-        Ok(Query(q)) => q,
-        Err(err) => {
-            return StatusResponse::new(err.status(), "invalid locations").into_response();
-        }
-    };
+    let params = accept!(Query from query);
     h.dispatch_provider(params.provider)
         .get_current_weather_at(&[params.location])
         .await
@@ -99,10 +84,7 @@ pub async fn handle_get_multi_weather<C: WeatherDataClient>(
     State(h): State<WeatherHandler<C>>,
     request: Result<Json<MultiWeatherRequest>, JsonRejection>,
 ) -> axum::response::Response {
-    let request = match request {
-        Ok(Json(r)) => r,
-        Err(err) => return StatusResponse::new(err.status(), &err.to_string()).into_response(),
-    };
+    let request = accept!(Json from request);
     h.dispatch_provider(request.provider)
         .get_current_weather_at(&request.locations)
         .await
