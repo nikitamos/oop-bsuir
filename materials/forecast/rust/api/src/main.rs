@@ -1,6 +1,6 @@
 use std::{error::Error, path::PathBuf};
 
-use api::{WeatherHandler, weather};
+use api::WeatherHandler;
 use shared::utils::getenv;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;

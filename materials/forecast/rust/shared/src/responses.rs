@@ -19,7 +19,7 @@ impl StatusResponse {
     pub fn new_owned(status: StatusCode, message: String) -> Self {
         Self {
             code: status.as_u16(),
-            message: message,
+            message,
         }
     }
 }

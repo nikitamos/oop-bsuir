@@ -3,12 +3,11 @@ use std::sync::Arc;
 
 use clients::{OpenWeatherClient, WeatherDataClient};
 use controllers::weather::CurrentWeatherController;
-use models::schemas::date_yyyy_mm_dd;
 use models::weather::LocationSpec;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use shared::utils;
-use utoipa::{IntoParams, ToSchema, openapi::Schema};
+use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 pub mod forecast;
@@ -104,6 +103,12 @@ impl<C: WeatherDataClient> WeatherHandler<C> {
             WeatherProvider::OpenWeatherMap => &self.controller,
             WeatherProvider::Google => todo!(),
         }
+    }
+}
+
+impl Default for WeatherHandler<OpenWeatherClient> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
