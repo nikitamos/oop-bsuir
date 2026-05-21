@@ -1,11 +1,7 @@
-use std::error::Error;
-
 use chrono::prelude::*;
 use models::weather::{Forecast, LocationSpec};
-use reqwest::StatusCode;
 use rust_decimal::Decimal;
 
-use crate::BadStatusError;
 
 #[allow(async_fn_in_trait)]
 pub trait WeatherDataClient {

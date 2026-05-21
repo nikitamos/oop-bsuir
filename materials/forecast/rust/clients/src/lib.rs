@@ -1,10 +1,10 @@
-mod weather;
+mod open_weather;
 mod weather_data_client;
 
+use reqwest::StatusCode;
 use std::error::Error;
 
-use reqwest::StatusCode;
-pub use weather::*;
+pub use open_weather::*;
 pub use weather_data_client::*;
 
 #[derive(Debug)]
