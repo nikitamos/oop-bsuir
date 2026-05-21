@@ -9,6 +9,7 @@ controllers = { version = "0.1.0", path = "../controllers" }
 models = { version = "0.1.0", path = "../models" }
 shared = { version = "0.1.0", path = "../shared" }
 
+async-trait.workspace = true
 rust_decimal.workspace = true
 serde_json.workspace = true
 serde.workspace = true

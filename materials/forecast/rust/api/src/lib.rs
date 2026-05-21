@@ -1,7 +1,8 @@
 #![feature(coverage_attribute)]
+#![feature(impl_trait_in_bindings)]
 use std::sync::Arc;
 
-use clients::{OpenWeatherClient, WeatherDataClient};
+use clients::{GoogleWeatherClient, OpenWeatherClient, WeatherDataClient};
 use controllers::weather::CurrentWeatherController;
 use models::weather::LocationSpec;
 use rust_decimal::Decimal;
@@ -13,7 +14,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 pub mod forecast;
 pub mod weather;
 
-#[derive(Deserialize, Serialize, Default, ToSchema, Debug)]
+#[derive(Deserialize, Clone, Serialize, Default, ToSchema, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum WeatherProvider {
     #[default]
@@ -32,7 +33,7 @@ pub struct GetCurrentWeatherQuery {
     lon: Decimal,
 }
 
-#[derive(Deserialize, IntoParams, ToSchema)]
+#[derive(Debug, Clone, Deserialize, IntoParams, ToSchema)]
 #[into_params(parameter_in=Query)]
 pub struct SingleCurrentWeatherQuery {
     #[serde(flatten)]
@@ -67,10 +68,7 @@ pub struct MultiForecastRequest {
     date: chrono::NaiveDate,
 }
 
-pub fn routes_v2<C>(handler: WeatherHandler<C>) -> OpenApiRouter
-where
-    C: WeatherDataClient + Send + Sync + 'static,
-{
+pub fn routes_v2(handler: WeatherHandler) -> OpenApiRouter {
     OpenApiRouter::default()
         .routes(routes!(weather::handle_get_current_weather))
         .routes(routes!(weather::handle_get_current_weather2))
@@ -80,44 +78,58 @@ where
         .with_state(handler)
 }
 
-pub struct WeatherHandler<C: WeatherDataClient> {
-    pub controller: Arc<CurrentWeatherController<C>>,
+pub struct WeatherHandler {
+    pub controller: Arc<CurrentWeatherController<dyn WeatherDataClient>>,
+    pub google: Arc<CurrentWeatherController<dyn WeatherDataClient>>,
 }
 
-impl<C: WeatherDataClient> Clone for WeatherHandler<C> {
+impl WeatherHandler {
+    pub fn dispatch_provider(
+        &self,
+        provider: WeatherProvider,
+    ) -> Arc<CurrentWeatherController<dyn WeatherDataClient>> {
+        match provider {
+            WeatherProvider::OpenWeatherMap => Arc::clone(&self.controller),
+            WeatherProvider::Google => Arc::clone(&self.google),
+        }
+    }
+}
+
+impl Clone for WeatherHandler {
     fn clone(&self) -> Self {
         Self {
             controller: Arc::clone(&self.controller),
+            google: Arc::clone(&self.google),
         }
     }
 }
 
-impl<C: WeatherDataClient> WeatherHandler<C> {
-    pub fn new_with_client(client: C) -> Self {
+impl WeatherHandler {
+    pub fn new_with_client<C: WeatherDataClient + 'static>(client: C) -> Self {
+        let ctrl: Arc<CurrentWeatherController<dyn WeatherDataClient>> =
+            Arc::new(CurrentWeatherController { client });
         Self {
-            controller: Arc::new(CurrentWeatherController { client }),
+            controller: Arc::clone(&ctrl),
+            google: ctrl,
         }
     }
-    pub fn dispatch_provider(&self, provider: WeatherProvider) -> &CurrentWeatherController<C> {
-        match provider {
-            WeatherProvider::OpenWeatherMap => &self.controller,
-            WeatherProvider::Google => todo!(),
+    pub fn new_with_clients<C: WeatherDataClient + 'static, G: WeatherDataClient + 'static>(
+        owm: C,
+        google: G,
+    ) -> Self {
+        Self {
+            controller: Arc::new(CurrentWeatherController::new(owm)),
+            google: Arc::new(CurrentWeatherController::new(google)),
         }
     }
 }
 
-impl Default for WeatherHandler<OpenWeatherClient> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl WeatherHandler<OpenWeatherClient> {
+impl WeatherHandler {
     pub fn new() -> Self {
-        Self::new_with_client(OpenWeatherClient::new(
-            utils::getenv("OPENWEATHER_API_KEY", String::new()),
-            utils::getenv("OPENWEATHER_BASE_URL", String::new()),
-        ))
+        Self::new_with_clients(
+            OpenWeatherClient::from_env(),
+            GoogleWeatherClient::from_env(),
+        )
     }
 }
 
