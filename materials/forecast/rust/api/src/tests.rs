@@ -386,3 +386,217 @@ mod edge_cases {
         }
     }
 }
+
+mod multi_weather_tests {
+    use crate::MultiWeatherRequest;
+
+    use super::*;
+    use serde_json::json;
+
+    fn expected_weather(expected_temperatures: &[Decimal]) -> Vec<CurrentWeather> {
+        expected_temperatures
+            .iter()
+            .map(|&temperature| CurrentWeather { temperature })
+            .collect()
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn multiple_locations(mut mock_client: MockWeatherClient) {
+        let expected_temperatures = vec![
+            Decimal::from_str_exact("23.5").unwrap(),
+            Decimal::from_str_exact("18.2").unwrap(),
+            Decimal::from_str_exact("28.7").unwrap(),
+        ];
+        let expected_weather = expected_weather(&expected_temperatures);
+
+        let locations = vec![
+            LocationSpec::from_coord_str("52.52", "13.405").unwrap(),
+            LocationSpec::from_coord_str("40.7128", "-74.006").unwrap(),
+            LocationSpec::from_coord_str("-33.8688", "151.2093").unwrap(),
+        ];
+
+        mock_client
+            .expect_current_temp()
+            .with(eq(locations.clone()))
+            .times(1)
+            .returning(move |_| Ok(expected_temperatures.clone()));
+
+        let request_body = &MultiWeatherRequest {
+            locations,
+            provider: crate::WeatherProvider::OpenWeatherMap,
+        };
+
+        let response = app_client(mock_client)
+            .post("/weather2/multi")
+            .json(&request_body)
+            .await;
+
+        response.assert_status(StatusCode::OK);
+        let body: SuccessResponse<Vec<CurrentWeather>> = response.json();
+        assert_eq!(body.data, expected_weather);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn single_location(mut mock_client: MockWeatherClient) {
+        let expected_temperatures = vec![Decimal::from_str_exact("23.5").unwrap()];
+
+        let locations = vec![LocationSpec::from_coord_str("52.52", "13.405").unwrap()];
+
+        mock_client
+            .expect_current_temp()
+            .with(eq(locations))
+            .times(1)
+            .returning(move |_| Ok(expected_temperatures.clone()));
+
+        let request_body = json!({
+            "provider": "open_weather_map",
+            "locations": [
+                {"lat": "52.52", "lon": "13.405"}
+            ]
+        });
+
+        let response = app_client(mock_client)
+            .post("/weather2/multi")
+            .json(&request_body)
+            .await;
+
+        response.assert_status(StatusCode::OK);
+        let body: SuccessResponse<Vec<CurrentWeather>> = response.json();
+        assert_eq!(
+            body.data,
+            vec![CurrentWeather {
+                temperature: Decimal::from_str_exact("23.5").unwrap()
+            }]
+        );
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn zero_locations(mut mock_client: MockWeatherClient) {
+        mock_client
+            .expect_current_temp()
+            .with(eq(vec![] as Vec<LocationSpec>))
+            .times(..)
+            .returning(|_| Ok(vec![]));
+
+        let request_body = MultiWeatherRequest {
+            locations: vec![],
+            provider: crate::WeatherProvider::OpenWeatherMap,
+        };
+
+        let response = app_client(mock_client)
+            .post("/weather2/multi")
+            .json(&request_body)
+            .await;
+
+        response.assert_status(StatusCode::OK);
+        let body: SuccessResponse<Vec<CurrentWeather>> = response.json();
+        assert!(body.data.is_empty());
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn city_names(mut mock_client: MockWeatherClient) {
+        let expected_temperatures = vec![
+            Decimal::from_str_exact("15.5").unwrap(),
+            Decimal::from_str_exact("22.0").unwrap(),
+        ];
+        let expected_weather = expected_weather(&expected_temperatures);
+
+        let locations = vec![
+            LocationSpec::City("London".to_string()),
+            LocationSpec::City("Paris".to_string()),
+        ];
+
+        mock_client
+            .expect_current_temp()
+            .with(eq(locations.clone()))
+            .times(1)
+            .returning(move |_| Ok(expected_temperatures.clone()));
+
+        let request_body = MultiWeatherRequest {
+            locations,
+            provider: crate::WeatherProvider::OpenWeatherMap,
+        };
+
+        let response = app_client(mock_client)
+            .post("/weather2/multi")
+            .json(&request_body)
+            .await;
+
+        response.assert_status(StatusCode::OK);
+        let body: SuccessResponse<Vec<CurrentWeather>> = response.json();
+        assert_eq!(body.data, expected_weather);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn invalid_request(app: TestServer) {
+        let invalid_request = json!({
+            "wrong_field": "value"
+        });
+
+        let response = app.post("/weather2/multi").json(&invalid_request).await;
+
+        // Should return client error (400 or 422)
+        assert!(response.status_code().is_client_error());
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn missing_locations(app: TestServer) {
+        let request_body = json!({
+            "provider": "openweathermap"
+        });
+
+        let response = app.post("/weather2/multi").json(&request_body).await;
+
+        assert!(response.status_code().is_client_error());
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn service_error(mut mock_client: MockWeatherClient) {
+        let locations = vec![LocationSpec::from_coord_str("52.52", "13.405").unwrap()];
+
+        mock_client
+            .expect_current_temp()
+            .with(eq(locations))
+            .times(1)
+            .returning(|_| Err(anyhow::anyhow!("Weather service unavailable")));
+
+        let request_body = json!({
+            "provider": "open_weather_map",
+            "locations": [
+                {"lat": "52.52", "lon": "13.405"}
+            ]
+        });
+
+        let response = app_client(mock_client)
+            .post("/weather2/multi")
+            .json(&request_body)
+            .await;
+
+        response.assert_status(StatusCode::INTERNAL_SERVER_ERROR);
+        let body: StatusResponse = response.json();
+        assert!(body.message.contains("Weather service unavailable"));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn invalid_coordinates(app: TestServer) {
+        let request_body = json!({
+            "provider": "open_weather_map",
+            "locations": [
+                {"lat": "invalid", "lon": "13.405"}
+            ]
+        });
+
+        let response = app.post("/weather2/multi").json(&request_body).await;
+
+        // This should likely be handled by the validation layer
+        assert!(response.status_code().is_client_error());
+    }
+}
