@@ -1,14 +1,14 @@
 #![feature(coverage_attribute)]
 use std::sync::Arc;
 
-use axum::extract::FromRef;
 use clients::{OpenWeatherClient, WeatherDataClient};
 use controllers::weather::CurrentWeatherController;
+use models::schemas::date_yyyy_mm_dd;
 use models::weather::LocationSpec;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use shared::utils;
-use utoipa::{IntoParams, ToSchema};
+use utoipa::{IntoParams, ToSchema, openapi::Schema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 pub mod forecast;
@@ -41,16 +41,15 @@ pub struct SingleCurrentWeatherQuery {
     provider: WeatherProvider,
 }
 
-#[derive(Debug, Deserialize, IntoParams, ToSchema)]
+#[derive(Debug, Deserialize, Serialize, IntoParams, ToSchema)]
 #[into_params(parameter_in=Query)]
 pub struct SingleForecastQuery {
     #[serde(flatten)]
-    location: LocationSpec,
+    pub location: LocationSpec,
     #[serde(default = "WeatherProvider::default")]
-    provider: WeatherProvider,
-    /// Date in DD-MM-YYYY format
-    #[param(example = "09-05-2026")]
-    date: String,
+    pub provider: WeatherProvider,
+    #[param(example = "2026-09-05")]
+    pub date: chrono::NaiveDate,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -65,9 +64,8 @@ pub struct MultiForecastRequest {
     locations: Vec<LocationSpec>,
     #[serde(default = "WeatherProvider::default")]
     provider: WeatherProvider,
-    // Date in DD-MM-YYYY format
-    #[schema(example = "09-05-2026")]
-    date: String,
+    #[schema(example = "2026-09-05")]
+    date: chrono::NaiveDate,
 }
 
 pub fn routes_v2<C>(handler: WeatherHandler<C>) -> OpenApiRouter
@@ -116,6 +114,16 @@ impl WeatherHandler<OpenWeatherClient> {
             utils::getenv("OPENWEATHER_BASE_URL", String::new()),
         ))
     }
+}
+
+#[macro_export]
+macro_rules! accept {
+    ($wrapper:ident from $var:expr) => {
+        match $var {
+            Ok($wrapper(val)) => val,
+            Err(err) => return StatusResponse::new(err.status(), &err.to_string()).into_response(),
+        }
+    };
 }
 
 #[cfg(test)]

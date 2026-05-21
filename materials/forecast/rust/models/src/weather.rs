@@ -21,7 +21,7 @@ pub struct Forecast {
 #[serde(rename_all = "snake_case", untagged)]
 pub enum LocationSpec {
     Coordinates { lat: Decimal, lon: Decimal },
-    City(String),
+    City { city: String },
 }
 
 impl LocationSpec {
@@ -30,5 +30,10 @@ impl LocationSpec {
             .ok()
             .zip(Decimal::from_str_exact(lon).ok())
             .map(|(lat, lon)| Self::Coordinates { lat, lon })
+    }
+    pub fn from_city(city: &str) -> Self {
+        Self::City {
+            city: city.to_string(),
+        }
     }
 }

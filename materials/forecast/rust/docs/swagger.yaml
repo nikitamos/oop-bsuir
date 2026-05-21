@@ -22,11 +22,11 @@ paths:
           $ref: '#/components/schemas/WeatherProvider'
       - name: date
         in: query
-        description: Date in DD-MM-YYYY format
         required: true
         schema:
           type: string
-        example: 09-05-2026
+          format: date
+        example: 2026-09-05
       responses:
         '200':
           description: ''
@@ -222,7 +222,12 @@ components:
             type: string
           lon:
             type: string
-      - type: string
+      - type: object
+        required:
+        - city
+        properties:
+          city:
+            type: string
     MultiForecastRequest:
       type: object
       required:
@@ -231,7 +236,8 @@ components:
       properties:
         date:
           type: string
-          example: 09-05-2026
+          format: date
+          example: 2026-09-05
         locations:
           type: array
           items:

@@ -2,7 +2,7 @@ use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 use utoipa::{ToResponse, ToSchema};
 
-#[derive(Serialize, Deserialize, ToResponse, ToSchema)]
+#[derive(Serialize, Deserialize, ToResponse, ToSchema, Debug)]
 pub struct StatusResponse {
     #[schema(examples(0))]
     pub code: u16,

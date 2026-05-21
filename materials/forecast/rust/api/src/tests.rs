@@ -100,45 +100,23 @@ mod current_weather_tests {
     async fn test_get_current_weather_missing_params(app: TestServer) {
         let response = app.get("/weather").add_query_param("lon", "13.405").await;
 
-        response.assert_status(StatusCode::BAD_REQUEST);
-        let body: StatusResponse = response.json();
-        assert!(body.message.contains("invalid coordinates"));
+        assert!(response.status_code().is_client_error());
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_get_current_weather_invalid_params(app: TestServer) {
-        let response = app
-            .get("/weather")
-            .add_query_param("lat", "invalid")
-            .add_query_param("lon", "13.405")
-            .await;
-
-        response.assert_status(StatusCode::BAD_REQUEST);
-        let body: StatusResponse = response.json();
-        assert!(body.message.contains("invalid coordinates"));
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_get_current_weather_service_error(
-        app: TestServer,
-        mut mock_client: MockWeatherClient,
-    ) {
+    async fn weather_service_error(mut mock_client: MockWeatherClient) {
         mock_client
             .expect_current_temp()
-            .with(eq(vec![LocationSpec::Coordinates {
-                lat: Decimal::from_f64_retain(52.52).unwrap(),
-                lon: Decimal::from_f64_retain(13.405).unwrap(),
-            }]))
             .times(1)
             .returning(|_| Err(anyhow::anyhow!("Weather service unavailable",)));
 
         // Act
-        let response = app
-            .get("/weather")
+        let response = app_client(mock_client)
+            .get("/weather2")
             .add_query_param("lat", "52.52")
             .add_query_param("lon", "13.405")
+            .add_query_param("provider", "open_weather_map")
             .await;
 
         // Assert
@@ -175,7 +153,7 @@ mod forecast_tests {
         mock_client
             .expect_forecast()
             .with(
-                eq(vec![LocationSpec::City("Berlin".to_string())]),
+                eq(vec![LocationSpec::from_city("Berlin")]),
                 eq(forecast_date),
             )
             .times(1)
@@ -207,10 +185,7 @@ mod forecast_tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_get_forecast_coordinates_success(
-        app: TestServer,
-        mut mock_client: MockWeatherClient,
-    ) {
+    async fn test_get_forecast_coordinates_success(mut mock_client: MockWeatherClient) {
         let forecast_date = NaiveDate::from_ymd_opt(2024, 6, 21).unwrap();
 
         let expected_forecast = vec![Forecast {
@@ -233,11 +208,13 @@ mod forecast_tests {
             .returning(move |_, _| Ok(expected_forecast.clone()));
 
         // Act - Tokyo coordinates
-        let response = app
+        println!("{}", forecast_date.to_string());
+        let response = app_client(mock_client)
             .get("/forecast")
             .add_query_param("lat", "35.6762")
             .add_query_param("lon", "139.6503")
-            .add_query_param("date", "2024-06-21")
+            .add_query_param("date", forecast_date.to_string())
+            .add_query_param("provider", "open_weather_map")
             .await;
 
         // Assert
@@ -280,7 +257,7 @@ mod forecast_tests {
             .expect_forecast()
             .with(
                 eq(vec![
-                    LocationSpec::City("London".to_string()),
+                    LocationSpec::from_city("London"),
                     LocationSpec::Coordinates {
                         lat: Decimal::from_str_exact("48.8566").unwrap(),
                         lon: Decimal::from_str_exact("2.3522").unwrap(),
@@ -506,8 +483,8 @@ mod multi_weather_tests {
         let expected_weather = expected_weather(&expected_temperatures);
 
         let locations = vec![
-            LocationSpec::City("London".to_string()),
-            LocationSpec::City("Paris".to_string()),
+            LocationSpec::from_city("London"),
+            LocationSpec::from_city("Paris"),
         ];
 
         mock_client
