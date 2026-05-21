@@ -16,6 +16,7 @@ use shared::responses::{StatusResponse, SuccessResponse};
 // Mock the WeatherDataClient
 mock! {
     pub WeatherClient {}
+    #[async_trait::async_trait]
     impl WeatherDataClient for WeatherClient {
         async fn location_current_temperature(
             &self,
@@ -34,7 +35,7 @@ mock! {
     }
 }
 
-type MockHandler = WeatherHandler<MockWeatherClient>;
+type MockHandler = WeatherHandler;
 
 #[fixture]
 fn mock_client() -> MockWeatherClient {

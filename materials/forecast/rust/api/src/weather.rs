@@ -33,8 +33,8 @@ pub fn routers() -> OpenApiRouter {
          (status=500, body=StatusResponse)
     ),
 )]
-pub async fn handle_get_current_weather<C: WeatherDataClient>(
-    State(h): State<WeatherHandler<C>>,
+pub async fn handle_get_current_weather(
+    State(h): State<WeatherHandler>,
     query: Result<Query<GetCurrentWeatherQuery>, QueryRejection>,
 ) -> axum::response::Response {
     let GetCurrentWeatherQuery { lat, lon } = accept!(Query from query);
@@ -57,13 +57,15 @@ pub async fn handle_get_current_weather<C: WeatherDataClient>(
         (status=500, body=StatusResponse)
     )
 )]
-pub async fn handle_get_current_weather2<C: WeatherDataClient>(
-    State(h): State<WeatherHandler<C>>,
+pub async fn handle_get_current_weather2(
+    State(h): State<WeatherHandler>,
     query: Result<Query<SingleCurrentWeatherQuery>, QueryRejection>,
 ) -> axum::response::Response {
     let params = accept!(Query from query);
-    h.dispatch_provider(params.provider)
-        .get_current_weather_at(&[params.location])
+    let binding = &[params.location];
+    let fut = h.dispatch_provider(params.provider);
+
+    fut.get_current_weather_at(binding)
         .await
         .map(|mut v| SuccessResponse::new(StatusCode::OK, v.remove(0)))
         .map_err(|e| StatusResponse::new_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
@@ -80,8 +82,8 @@ pub async fn handle_get_current_weather2<C: WeatherDataClient>(
         (status=500, body=StatusResponse)
     )
 )]
-pub async fn handle_get_multi_weather<C: WeatherDataClient>(
-    State(h): State<WeatherHandler<C>>,
+pub async fn handle_get_multi_weather(
+    State(h): State<WeatherHandler>,
     request: Result<Json<MultiWeatherRequest>, JsonRejection>,
 ) -> axum::response::Response {
     let request = accept!(Json from request);

@@ -22,8 +22,8 @@ use crate::{MultiForecastRequest, SingleForecastQuery, WeatherHandler, accept};
         (status=500, body=StatusResponse)
     )
 )]
-pub async fn handle_get_forecast<C: WeatherDataClient>(
-    State(h): State<WeatherHandler<C>>,
+pub async fn handle_get_forecast(
+    State(h): State<WeatherHandler>,
     query: Result<Query<SingleForecastQuery>, QueryRejection>,
 ) -> axum::response::Response {
     let query = accept!(Query from query);
@@ -45,8 +45,8 @@ pub async fn handle_get_forecast<C: WeatherDataClient>(
     )
 )]
 // #[axum::debug_handler]
-pub async fn handle_get_multi_forecast<C: WeatherDataClient>(
-    State(h): State<WeatherHandler<C>>,
+pub async fn handle_get_multi_forecast(
+    State(h): State<WeatherHandler>,
     x: Result<Json<MultiForecastRequest>, JsonRejection>,
 ) -> axum::response::Response {
     let request = accept!(Json from x);

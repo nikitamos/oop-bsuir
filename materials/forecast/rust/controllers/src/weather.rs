@@ -3,12 +3,15 @@ use models::weather::{CurrentWeather, Forecast, LocationSpec};
 use rust_decimal::Decimal;
 
 #[derive(Clone)]
-pub struct CurrentWeatherController<T: WeatherDataClient> {
+pub struct CurrentWeatherController<T: ?Sized> {
     pub client: T,
 }
 
-impl<T: WeatherDataClient> CurrentWeatherController<T> {
-    pub fn new(client: T) -> Self {
+impl<T: WeatherDataClient + ?Sized> CurrentWeatherController<T> {
+    pub fn new(client: T) -> Self
+    where
+        T: Sized,
+    {
         CurrentWeatherController { client }
     }
     #[deprecated]
@@ -25,7 +28,6 @@ impl<T: WeatherDataClient> CurrentWeatherController<T> {
         &self,
         locations: &[LocationSpec],
     ) -> anyhow::Result<Vec<CurrentWeather>> {
-        println!("calling current_temp with {locations:?}");
         self.client.current_temp(locations).await.map(|v| {
             v.into_iter()
                 .map(|temperature| CurrentWeather { temperature })

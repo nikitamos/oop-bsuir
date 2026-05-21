@@ -10,7 +10,9 @@ serde_json.workspace = true
 log.workspace = true
 chrono.workspace = true
 tokio.workspace = true
+async-trait.workspace = true
 reqwest = "0.13.2"
 models = { path = "../models" }
+shared = {path="../shared"}
 anyhow = "1.0.102"
 futures = "0.3.32"

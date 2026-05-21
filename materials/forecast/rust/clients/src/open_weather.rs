@@ -30,8 +30,15 @@ impl OpenWeatherClient {
     pub fn new(api_key: String, base_url: String) -> OpenWeatherClient {
         OpenWeatherClient { api_key, base_url }
     }
+    pub fn from_env() -> OpenWeatherClient {
+        OpenWeatherClient::new(
+            shared::utils::getenv("OPENWEATHER_API_KEY", String::new()),
+            shared::utils::getenv("OPENWEATHER_BASE_URL", String::new()),
+        )
+    }
 }
 
+#[async_trait::async_trait]
 impl WeatherDataClient for OpenWeatherClient {
     async fn location_current_temperature(
         &self,
@@ -147,16 +154,10 @@ impl OpenWeatherClient {
 
         Ok(models::weather::Forecast {
             temperature,
-            wind_direction: Self::deg_to_cardinal(wind_deg),
+            wind_direction: crate::deg_to_cardinal(wind_deg),
             humidity,
             precipitation,
         })
-    }
-
-    fn deg_to_cardinal(deg: f64) -> String {
-        const DIRS: [&str; 8] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-        let idx = ((deg + 22.5) % 360.0) as usize / 45;
-        DIRS[idx].to_string()
     }
 }
 
