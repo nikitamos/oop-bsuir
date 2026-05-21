@@ -18,7 +18,7 @@ utoipa = { workspace = true, features = ["axum_extras", "yaml", "chrono"] }
 utoipa-axum = "0.2.0"
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 dotenvy = "0.15.7"
-tokio = { version = "1.49.0", features = ["fs", "rt-multi-thread"] }
+tokio.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 axum-test = "20.0.0"
 rstest = "0.26.1"

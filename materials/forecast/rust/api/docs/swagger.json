@@ -32,12 +32,12 @@
           {
             "name": "date",
             "in": "query",
-            "description": "Date in DD-MM-YYYY format",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date"
             },
-            "example": "09-05-2026"
+            "example": "2026-09-05"
           }
         ],
         "responses": {
@@ -274,6 +274,16 @@
               }
             }
           },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "",
             "content": {
@@ -347,7 +357,15 @@
             }
           },
           {
-            "type": "string"
+            "type": "object",
+            "required": [
+              "city"
+            ],
+            "properties": {
+              "city": {
+                "type": "string"
+              }
+            }
           }
         ]
       },
@@ -360,7 +378,8 @@
         "properties": {
           "date": {
             "type": "string",
-            "example": "09-05-2026"
+            "format": "date",
+            "example": "2026-09-05"
           },
           "locations": {
             "type": "array",

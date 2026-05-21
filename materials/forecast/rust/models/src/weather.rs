@@ -17,6 +17,42 @@ pub struct Forecast {
     pub precipitation: Decimal,
 }
 
+pub mod owm {
+    #[derive(serde::Deserialize, Debug)]
+    pub struct OpenWeatherForecastResponse {
+        pub list: Vec<ForecastItem>,
+    }
+
+    #[derive(serde::Deserialize, Debug)]
+    pub struct ForecastItem {
+        pub dt: i64,
+        pub main: MainData,
+        pub wind: WindData,
+        #[serde(default)]
+        pub rain: Option<RainData>,
+        #[serde(default)]
+        pub pop: Option<f64>,
+    }
+
+    #[derive(serde::Deserialize, Debug)]
+    pub struct MainData {
+        pub temp: f64,
+        pub humidity: u32,
+    }
+
+    #[derive(serde::Deserialize, Debug)]
+    pub struct WindData {
+        #[serde(default)]
+        pub deg: Option<f64>,
+    }
+
+    #[derive(serde::Deserialize, Debug)]
+    pub struct RainData {
+        #[serde(rename = "3h", default)]
+        pub hours_3: Option<f64>,
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema, Eq, PartialEq, PartialOrd, Ord, Clone)]
 #[serde(rename_all = "snake_case", untagged)]
 pub enum LocationSpec {
@@ -36,4 +72,18 @@ impl LocationSpec {
             city: city.to_string(),
         }
     }
+}
+
+pub fn segregate_locations(locations: &[LocationSpec]) -> (Vec<String>, Vec<(Decimal, Decimal)>) {
+    let mut cities = vec![];
+    let mut coords = vec![];
+
+    for l in locations {
+        match l {
+            LocationSpec::Coordinates { lat, lon } => coords.push((*lat, *lon)),
+            LocationSpec::City { city } => cities.push(city.clone()),
+        }
+    }
+
+    (cities, coords)
 }
