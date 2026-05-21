@@ -52,6 +52,9 @@ where
             data,
         }
     }
+    pub fn ok(data: T) -> Self {
+        Self::new(StatusCode::OK, data)
+    }
 }
 
 impl<T> IntoResponse for SuccessResponse<T>

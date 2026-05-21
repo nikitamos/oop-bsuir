@@ -121,6 +121,70 @@
         }
       }
     },
+    "/api/v2/weather": {
+      "get": {
+        "tags": [
+          "weather"
+        ],
+        "summary": "Get Current Weather",
+        "description": "Returns current weather for given coordinates",
+        "operationId": "handle_get_current_weather",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "description": "Latitude",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "18.300231990440125"
+            }
+          },
+          {
+            "name": "lon",
+            "in": "query",
+            "description": "Longitude",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "-64.8251590359234"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_CurrentWeather"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/weather2": {
       "get": {
         "operationId": "handle_get_current_weather2",
@@ -201,6 +265,16 @@
             }
           },
           "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
             "description": "",
             "content": {
               "application/json": {

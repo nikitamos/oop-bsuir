@@ -25,6 +25,7 @@ impl<T: WeatherDataClient> CurrentWeatherController<T> {
         &self,
         locations: &[LocationSpec],
     ) -> anyhow::Result<Vec<CurrentWeather>> {
+        println!("calling current_temp with {locations:?}");
         self.client.current_temp(locations).await.map(|v| {
             v.into_iter()
                 .map(|temperature| CurrentWeather { temperature })

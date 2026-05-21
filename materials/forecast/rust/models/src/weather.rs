@@ -2,7 +2,7 @@ use rust_decimal::Decimal;
 use serde_derive::{Deserialize, Serialize};
 use utoipa::{IntoResponses, ToSchema};
 
-#[derive(Serialize, Deserialize, ToSchema, IntoResponses)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, IntoResponses, PartialEq, Eq)]
 #[response(status = 200)]
 pub struct CurrentWeather {
     #[schema(examples("0.0"))]
@@ -17,7 +17,7 @@ pub struct Forecast {
     pub precipitation: Decimal,
 }
 
-#[derive(Debug, Deserialize, ToSchema, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Eq, PartialEq, PartialOrd, Ord, Clone)]
 #[serde(rename_all = "snake_case", untagged)]
 pub enum LocationSpec {
     Coordinates { lat: Decimal, lon: Decimal },

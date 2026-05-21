@@ -1,7 +1,10 @@
 use super::SingleCurrentWeatherQuery;
 use axum::{
     Json,
-    extract::{Query, State, rejection::QueryRejection},
+    extract::{
+        Query, State,
+        rejection::{JsonRejection, QueryRejection},
+    },
     http::StatusCode,
     response::IntoResponse,
 };
@@ -88,12 +91,22 @@ pub async fn handle_get_current_weather2<C: WeatherDataClient>(
     responses(
         (status=200, body=SuccessResponse<CurrentWeather>),
         (status=400, body=StatusResponse),
+        (status=422, body=StatusResponse),
         (status=500, body=StatusResponse)
     )
 )]
 pub async fn handle_get_multi_weather<C: WeatherDataClient>(
     State(h): State<WeatherHandler<C>>,
-    Json(x): Json<MultiWeatherRequest>,
+    request: Result<Json<MultiWeatherRequest>, JsonRejection>,
 ) -> axum::response::Response {
-    todo!()
+    let request = match request {
+        Ok(Json(r)) => r,
+        Err(err) => return StatusResponse::new(err.status(), &err.to_string()).into_response(),
+    };
+    h.dispatch_provider(request.provider)
+        .get_current_weather_at(&request.locations)
+        .await
+        .map(SuccessResponse::ok)
+        .map_err(|e| StatusResponse::new_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        .into_response()
 }

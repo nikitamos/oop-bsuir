@@ -6,7 +6,7 @@ use clients::{OpenWeatherClient, WeatherDataClient};
 use controllers::weather::CurrentWeatherController;
 use models::weather::LocationSpec;
 use rust_decimal::Decimal;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use shared::utils;
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -14,7 +14,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 pub mod forecast;
 pub mod weather;
 
-#[derive(Deserialize, Default, ToSchema, Debug)]
+#[derive(Deserialize, Serialize, Default, ToSchema, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum WeatherProvider {
     #[default]
@@ -53,7 +53,7 @@ pub struct SingleForecastQuery {
     date: String,
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct MultiWeatherRequest {
     locations: Vec<LocationSpec>,
     #[serde(default = "WeatherProvider::default")]
