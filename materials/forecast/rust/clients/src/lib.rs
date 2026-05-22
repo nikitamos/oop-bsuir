@@ -1,7 +1,9 @@
+#![feature(coverage_attribute)]
 mod google;
 mod open_weather;
 mod weather_data_client;
 
+use chrono::{NaiveDate, Utc};
 use models::weather::{Coordinates, LocationSpec};
 use reqwest::StatusCode;
 use std::error::Error;
@@ -76,3 +78,13 @@ fn deg_to_cardinal(deg: f64) -> String {
     let idx = ((deg + 22.5) % 360.0) as usize / 45;
     DIRS[idx].to_string()
 }
+
+pub trait DateProvider: Send + Sync {
+    fn today(&self) -> NaiveDate {
+        Utc::now().date_naive()
+    }
+}
+
+#[derive(Default)]
+pub struct DefaultDateProvider;
+impl DateProvider for DefaultDateProvider {}

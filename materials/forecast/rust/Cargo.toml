@@ -19,3 +19,4 @@ chrono = "0.4.44"
 log = "0.4.29"
 tokio = { version = "1.49.0", features = ["fs", "rt-multi-thread"] }
 async-trait = "0.1.89"
+rstest = "0.26.1"

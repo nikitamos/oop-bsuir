@@ -1,0 +1,9 @@
+output-type: html
+output-path: ./target/debug/coverage/
+ignore:
+  - "/*"
+  - "**/tests/*"
+  - "**/tests.rs"
+  - "**/test.rs"
+branch: false
+threads: 4

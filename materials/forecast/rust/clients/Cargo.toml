@@ -11,8 +11,10 @@ log.workspace = true
 chrono.workspace = true
 tokio.workspace = true
 async-trait.workspace = true
+rstest.workspace = true
 reqwest = "0.13.2"
 models = { path = "../models" }
-shared = {path="../shared"}
+shared = { path = "../shared" }
 anyhow = "1.0.102"
 futures = "0.3.32"
+wiremock = "0.6.5"

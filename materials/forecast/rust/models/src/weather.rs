@@ -55,56 +55,57 @@ pub mod owm {
 
 pub mod google {
     use rust_decimal::Decimal;
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Deserialize)]
+    #[derive(Debug, Deserialize, Serialize, Clone)]
     pub struct CurrentConditions {
         pub temperature: Temperature,
     }
-    #[derive(Debug, Deserialize)]
+
+    impl CurrentConditions {
+        pub fn with_temp(degrees: Decimal) -> Self {
+            Self {
+                temperature: Temperature { degrees },
+            }
+        }
+    }
+
+    #[derive(Debug, Deserialize, Serialize, Clone)]
     pub struct Temperature {
         pub degrees: Decimal,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Deserialize, Serialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct GoogleForecastResponse {
         pub forecast_days: Vec<ForecastDay>,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Deserialize, Serialize, Debug, Clone)]
     #[serde(rename_all = "camelCase")]
     pub struct ForecastDay {
-        pub daytime_forecast: DaytimeForecast,
-        pub nighttime_forecast: NighttimeForecast,
+        pub daytime_forecast: ConditionForecast,
+        // pub nighttime_forecast: ConditionForecast,
         pub max_temperature: Temperature,
         pub min_temperature: Temperature,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Deserialize, Serialize, Debug, Clone)]
     #[serde(rename_all = "camelCase")]
-    pub struct DaytimeForecast {
+    pub struct ConditionForecast {
         pub relative_humidity: u32,
         pub precipitation: Precipitation,
         pub wind: Wind,
     }
 
-    #[derive(Deserialize, Debug)]
-    #[serde(rename_all = "camelCase")]
-    struct NighttimeForecast {
-        pub relative_humidity: u32,
-        pub precipitation: Precipitation,
-        pub wind: Wind,
-    }
-
-    #[derive(Deserialize, Debug)]
+    #[derive(Deserialize, Serialize, Debug,Clone)]
     #[serde(rename_all = "camelCase")]
     pub struct Precipitation {
         #[serde(default)]
         pub qpf: Option<QuantitativePrecipitationForecast>,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Deserialize, Serialize, Debug, Clone)]
     #[serde(rename_all = "camelCase")]
     pub struct QuantitativePrecipitationForecast {
         pub quantity: Decimal,
@@ -112,13 +113,13 @@ pub mod google {
         pub unit: String,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Deserialize, Serialize, Debug, Clone)]
     #[serde(rename_all = "camelCase")]
     pub struct Wind {
         pub direction: WindDirection,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Deserialize, Serialize, Debug, Clone)]
     #[serde(rename_all = "camelCase")]
     pub struct WindDirection {
         pub degrees: Option<f64>,

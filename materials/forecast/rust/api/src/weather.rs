@@ -8,7 +8,6 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use clients::WeatherDataClient;
 use models::weather::CurrentWeather;
 use shared::responses::{self, StatusResponse, SuccessResponse};
 use utoipa_axum::{router::OpenApiRouter, routes};
