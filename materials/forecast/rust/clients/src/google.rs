@@ -136,7 +136,8 @@ impl<DP: DateProvider> GoogleWeatherClient<DP> {
         let mut body: GoogleForecastResponse = serde_json::de::from_str(&resp.text().await?)?;
         let forecast = body.forecast_days.remove(day);
         Ok(Forecast {
-            temperature: (forecast.max_temperature.degrees + forecast.min_temperature.degrees) / Decimal::from(2),
+            temperature: (forecast.max_temperature.degrees + forecast.min_temperature.degrees)
+                / Decimal::from(2),
             wind_direction: crate::deg_to_cardinal(
                 forecast.daytime_forecast.wind.direction.degrees.unwrap(),
             ),
@@ -175,7 +176,10 @@ mod test {
         QuantitativePrecipitationForecast, Temperature, WindDirection,
     };
     use rstest::rstest;
-    use rust_decimal::Decimal;
+    use rust_decimal::{
+        Decimal,
+        prelude::{FromPrimitive, ToPrimitive},
+    };
     use wiremock::{
         Mock, MockBuilder, MockServer, ResponseTemplate,
         matchers::{method, path, path_regex, query_param},
@@ -347,5 +351,50 @@ mod test {
             .await;
 
         assert!(result.is_err());
+    }
+    // Add to tests/google_weather_client.rs
+
+    #[tokio::test]
+    async fn test_current_temp_with_cities_tokyo_shanghai() -> Result<()> {
+        let mock = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/currentConditions:lookup"))
+            .and(query_param("key", "key"))
+            .and(query_param("location.latitude", "35.6764"))
+            .and(query_param("location.longitude", "139.6500"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "temperature": { "degrees": 12.3, "unit": "CELSIUS" }
+            })))
+            .mount(&mock)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/currentConditions:lookup"))
+            .and(query_param("key", "key"))
+            .and(query_param("location.latitude", "31.2304"))
+            .and(query_param("location.longitude", "121.4737"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "temperature": { "degrees": 18.7, "unit": "CELSIUS" }
+            })))
+            .mount(&mock)
+            .await;
+
+        let client = GoogleWeatherClient::new(mock.uri(), "key".into());
+        // Input cities; normalizer resolves to coordinates above
+        let locations = vec![
+            LocationSpec::City {
+                city: "Tokyo".into(),
+            },
+            LocationSpec::City {
+                city: "Shanghai".into(),
+            },
+        ];
+
+        let temps = client.current_temp(&locations).await?;
+        assert_eq!(temps.len(), 2);
+        assert_eq!(temps[0], Decimal::from_str_exact("12.3").unwrap());
+        assert_eq!(temps[1], Decimal::from_str_exact("18.7").unwrap());
+        Ok(())
     }
 }

@@ -45,7 +45,6 @@ impl WeatherDataClient for OpenWeatherClient {
         lat: Decimal,
         lon: Decimal,
     ) -> anyhow::Result<Decimal> {
-        panic!("obsolete.");
         let url = format!(
             "{}?lat={}&lon={}&appid={}&units=metric",
             self.base_url, lat, lon, self.api_key
@@ -284,5 +283,64 @@ mod tests {
 
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("404"));
+    }
+
+    // Add to tests/openweather_client.rs
+
+    #[tokio::test]
+    async fn test_current_temp_with_city_name() -> Result<()> {
+        let mock = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/weather"))
+            .and(query_param("q", "London"))
+            .and(query_param("appid", "key"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "main": { "temp": 15.5 }
+            })))
+            .mount(&mock)
+            .await;
+
+        let client = OpenWeatherClient::new("key".into(), mock.uri());
+        let locations = vec![LocationSpec::City {
+            city: "London".into(),
+        }];
+
+        let temps = client.current_temp(&locations).await?;
+        assert_eq!(temps, vec![Decimal::from_f64(15.5).unwrap()]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_forecast_with_city_name() -> Result<()> {
+        let mock = MockServer::start().await;
+        let target_date = NaiveDate::from_ymd_opt(2025, 2, 10).unwrap();
+
+        Mock::given(method("GET"))
+            .and(path("/forecast"))
+            .and(query_param("q", "Zhabinka"))
+            .and(query_param("appid", "key"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "list": [{
+                    "dt": 1739224800,
+                    "main": { "temp": 10.0, "humidity": 70 },
+                    "wind": { "deg": 180 },
+                    "pop": 0.3
+                }]
+            })))
+            .mount(&mock)
+            .await;
+
+        let client = OpenWeatherClient::new("key".into(), mock.uri());
+        let locations = vec![LocationSpec::City {
+            city: "Zhabinka".into(),
+        }];
+
+        let forecast = client.forecast(&locations, target_date).await?;
+        assert_eq!(forecast.len(), 1);
+        assert_eq!(forecast[0].temperature, Decimal::from_f64(10.0).unwrap());
+        assert_eq!(forecast[0].humidity, 70);
+        assert_eq!(forecast[0].wind_direction, "S"); // 180° = South
+        Ok(())
     }
 }

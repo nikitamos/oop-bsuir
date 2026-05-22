@@ -7,7 +7,6 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use clients::WeatherDataClient;
 use models::weather::{CurrentWeather, Forecast};
 use shared::responses::{StatusResponse, SuccessResponse};
 

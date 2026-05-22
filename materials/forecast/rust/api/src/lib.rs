@@ -7,7 +7,6 @@ use controllers::weather::CurrentWeatherController;
 use models::weather::LocationSpec;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use shared::utils;
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
