@@ -5,7 +5,6 @@ use rust_decimal::Decimal;
 pub enum AccountType {
     Cash,
     BankCard,
-    Savings,
 }
 
 pub struct Account {

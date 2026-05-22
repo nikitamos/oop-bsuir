@@ -1,6 +1,10 @@
 #![allow(unused)]
-pub mod auth;
 pub mod account;
-pub mod transaction;
-pub mod budget;
 pub mod analytics;
+pub mod auth;
+pub mod budget;
+pub mod transaction;
+
+pub mod prelude {
+    pub use super::{account::*, analytics::*, auth::*, budget::*, transaction::*};
+}

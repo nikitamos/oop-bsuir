@@ -6,5 +6,9 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.102"
 async-trait.workspace = true
-chrono = {workspace = true}
-rust_decimal = {workspace = true}
+axum.workspace = true
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+serde.workspace = true
+utoipa = { workspace = true, features = ["axum_extras", "yaml", "chrono"] }
+utoipa-axum = "0.2.0"
