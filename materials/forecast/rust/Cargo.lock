@@ -668,6 +668,7 @@ name = "fintracker"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "rust_decimal",
 ]
