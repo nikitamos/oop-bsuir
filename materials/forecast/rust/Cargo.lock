@@ -673,8 +673,10 @@ dependencies = [
  "chrono",
  "rust_decimal",
  "serde",
+ "tokio",
  "utoipa",
  "utoipa-axum",
+ "utoipa-swagger-ui",
 ]
 
 [[package]]

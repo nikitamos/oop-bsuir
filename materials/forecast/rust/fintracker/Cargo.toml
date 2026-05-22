@@ -7,8 +7,10 @@ edition = "2024"
 anyhow = "1.0.102"
 async-trait.workspace = true
 axum.workspace = true
-chrono = { workspace = true }
+chrono = { workspace = true,features = ["serde"] }
 rust_decimal = { workspace = true }
 serde.workspace = true
+tokio = { workspace = true, features = ["net", "tokio-macros"] }
 utoipa = { workspace = true, features = ["axum_extras", "yaml", "chrono"] }
 utoipa-axum = "0.2.0"
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
