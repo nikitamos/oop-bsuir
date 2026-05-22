@@ -5,7 +5,7 @@ members = [
     "controllers",
     "models",
     "api",
-    "shared",
+    "shared", "fintracker",
 ]
 
 [workspace.dependencies]
