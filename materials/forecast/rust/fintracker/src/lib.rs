@@ -42,6 +42,7 @@ pub mod shared {
 pub mod models {
     pub mod domain;
     pub mod dtos;
+    pub mod entities;
     pub mod db {
         // models/repository.rs
         use super::domain::*;
@@ -126,9 +127,7 @@ pub mod models {
 pub use models::db as repositories;
 
 pub mod clients {
-    pub mod sea_orm {
-        // DBs
-    }
+    pub mod sea_orm;
 }
 
 pub mod api;
