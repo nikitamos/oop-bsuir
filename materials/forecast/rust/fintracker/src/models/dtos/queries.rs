@@ -1,10 +1,10 @@
+use chrono::NaiveDate;
 use serde::Deserialize;
 use utoipa::IntoParams;
 
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct MonthQuery {
-    #[param(example = "2025-06-01")]
-    pub month: String,
+    pub month: NaiveDate,
 }
 
 #[derive(Debug, Deserialize, IntoParams)]

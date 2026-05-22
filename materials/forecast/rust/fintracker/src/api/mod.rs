@@ -9,6 +9,7 @@ pub mod state {
         pub transaction_service: Arc<TransactionController>,
         pub budget_service: Arc<BudgetController>,
         pub analytics_service: Arc<AnalyticsController>,
+        pub category_service: Arc<CategoryController>,
     }
 }
 pub mod error {
@@ -61,6 +62,7 @@ use crate::{
         queries::{MonthCountQuery, MonthQuery},
         transaction::{CreateTransactionRequest, GetTransactionsRequest, TransactionResponse},
     },
+    shared::error::ApplicationError,
 };
 use axum::{
     Extension, Json, Router,
@@ -69,6 +71,7 @@ use axum::{
     middleware,
     routing::{get, post},
 };
+use chrono::{Datelike, NaiveDate};
 use utoipa::OpenApi;
 
 pub struct AuthenticatedUser {
@@ -148,11 +151,18 @@ pub async fn create_account(
     AuthenticatedUser { user_id, .. }: AuthenticatedUser,
     Json(request): Json<CreateAccountRequest>,
 ) -> Result<(StatusCode, Json<AccountResponse>), AppError> {
-    state.account_service.create_account(user_id, request.name, request.account_type);
-    todo!()
+    let account = state
+        .account_service
+        .create_account(
+            user_id,
+            request.name,
+            request.account_type.into(),
+            request.initial_balance,
+        )
+        .await?;
+    Ok((StatusCode::OK, Json(account.into())))
 }
 
-/// Получение всех счетов пользователя
 #[utoipa::path(
     get,
     path = "/api/accounts",
@@ -167,7 +177,15 @@ pub async fn get_accounts(
     State(state): State<AppState>,
     AuthenticatedUser { user_id, .. }: AuthenticatedUser,
 ) -> Result<Json<Vec<AccountResponse>>, AppError> {
-    todo!()
+    Ok(Json(
+        state
+            .account_service
+            .get_accounts(user_id)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+    ))
 }
 
 // api/transactions.rs
@@ -190,10 +208,24 @@ pub async fn create_transaction(
     AuthenticatedUser { user_id, .. }: AuthenticatedUser,
     Json(request): Json<CreateTransactionRequest>,
 ) -> Result<(StatusCode, Json<TransactionResponse>), AppError> {
-    todo!()
+    // Validate that account belongs to the user?
+    let transaction = state
+        .transaction_service
+        .create_transaction(
+            request.account_id,
+            request.category_id,
+            request.amount,
+            request.transaction_type.into(),
+            request.description,
+        )
+        .await?;
+    // Check whether the budget has been exceeded
+    Ok((
+        StatusCode::CREATED,
+        Json(TransactionResponse::from_transaction(transaction, false)),
+    ))
 }
 
-/// Получение списка транзакций по счёту за период
 #[utoipa::path(
     get,
     path = "/api/transactions",
@@ -214,11 +246,17 @@ pub async fn get_transactions(
     AuthenticatedUser { user_id, .. }: AuthenticatedUser,
     Query(params): Query<GetTransactionsRequest>,
 ) -> Result<Json<Vec<TransactionResponse>>, AppError> {
-    todo!()
+    // Validate that accounts belong to the user
+    let res = state
+        .transaction_service
+        .get_transactions(params.account_id, params.from, params.to)
+        .await?
+        .into_iter()
+        .map(|tr| TransactionResponse::from_transaction(tr, false))
+        .collect();
+    Ok(Json(res))
 }
 
-// api/budgets.rs
-/// Установка месячного лимита на категорию
 #[utoipa::path(
     post,
     path = "/api/budgets",
@@ -236,10 +274,20 @@ pub async fn set_budget(
     AuthenticatedUser { user_id, .. }: AuthenticatedUser,
     Json(request): Json<SetBudgetRequest>,
 ) -> Result<(StatusCode, Json<BudgetResponse>), AppError> {
-    todo!()
+    let budget = state
+        .budget_service
+        .set_budget(
+            user_id,
+            request.category_id,
+            request.amount_limit,
+            request.month.with_day(1).unwrap(),
+        )
+        .await
+        .map(From::from)?;
+
+    Ok((StatusCode::CREATED, Json(budget)))
 }
 
-/// Получение всех бюджетов пользователя за указанный месяц
 #[utoipa::path(
     get,
     path = "/api/budgets",
@@ -258,10 +306,16 @@ pub async fn get_budgets(
     AuthenticatedUser { user_id, .. }: AuthenticatedUser,
     Query(month): Query<MonthQuery>,
 ) -> Result<Json<Vec<BudgetResponse>>, AppError> {
-    todo!()
+    let budgets = state
+        .budget_service
+        .get_budgets(user_id, month.month.with_day(1).unwrap())
+        .await?;
+
+    let responses: Vec<BudgetResponse> = budgets.into_iter().map(Into::into).collect();
+
+    Ok(Json(responses))
 }
 
-/// Получение детальной информации по конкретному бюджету
 #[utoipa::path(
     get,
     path = "/api/budgets/{budget_id}",
@@ -281,11 +335,14 @@ pub async fn get_budget_status(
     AuthenticatedUser { user_id, .. }: AuthenticatedUser,
     Path(budget_id): Path<i64>,
 ) -> Result<Json<BudgetResponse>, AppError> {
-    todo!()
+    // Validate that budget belongs to the user
+    let budget = state.budget_service.get_budget_status(budget_id).await?;
+
+    Ok(Json(BudgetResponse::from(budget)))
 }
 
 // api/analytics.rs
-/// Сводка расходов за период в разрезе категорий
+
 #[utoipa::path(
     get,
     path = "/api/analytics/expenses",
@@ -305,7 +362,18 @@ pub async fn get_expenses_summary(
     AuthenticatedUser { user_id, .. }: AuthenticatedUser,
     Query(params): Query<AnalyticsRequest>,
 ) -> Result<Json<ExpensesSummary>, AppError> {
-    todo!()
+    if params.from >= params.to {
+        return Err(AppError(ApplicationError::BadRequest(
+            "'from' date must be earlier than 'to' date".to_string(),
+        )));
+    }
+
+    let summary = state
+        .analytics_service
+        .get_expenses_summary(user_id, params.from, params.to)
+        .await?;
+
+    Ok(Json(summary))
 }
 
 /// Сравнение доходов и расходов по месяцам
@@ -327,7 +395,25 @@ pub async fn get_monthly_summary(
     AuthenticatedUser { user_id, .. }: AuthenticatedUser,
     Query(months): Query<MonthCountQuery>,
 ) -> Result<Json<Vec<MonthlySummary>>, AppError> {
-    todo!()
+    let months_count = months.months.unwrap_or(6);
+
+    if months_count == 0 {
+        return Err(AppError(ApplicationError::BadRequest(
+            "'months' must be greater than 0".to_string(),
+        )));
+    }
+    if months_count > 24 {
+        return Err(AppError(ApplicationError::BadRequest(
+            "'months' cannot exceed 24".to_string(),
+        )));
+    }
+
+    let summaries = state
+        .analytics_service
+        .get_monthly_summary(user_id, months_count)
+        .await?;
+
+    Ok(Json(summaries))
 }
 
 #[utoipa::path(
@@ -344,10 +430,13 @@ pub async fn get_categories(
     State(state): State<AppState>,
     AuthenticatedUser { .. }: AuthenticatedUser,
 ) -> Result<Json<Vec<CategoryResponse>>, AppError> {
-    todo!()
+    let categories = state.category_service.get_all_categories().await?;
+
+    let responses: Vec<CategoryResponse> = categories.into_iter().map(Into::into).collect();
+
+    Ok(Json(responses))
 }
 
-// Сборка роутера
 pub fn build_router(state: AppState) -> Router {
     let public_routes = Router::new()
         .route("/api/auth/register", post(register))

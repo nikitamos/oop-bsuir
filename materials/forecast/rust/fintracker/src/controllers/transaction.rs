@@ -1,4 +1,5 @@
 use chrono::NaiveDateTime;
+use rust_decimal::Decimal;
 
 use crate::models::domain::transaction::{Transaction, TransactionType};
 use crate::repositories::*;
@@ -26,7 +27,7 @@ impl TransactionController {
         &self,
         account_id: i64,
         category_id: i64,
-        amount: f64,
+        amount: Decimal,
         transaction_type: TransactionType,
         description: Option<String>,
     ) -> Result<Transaction> {

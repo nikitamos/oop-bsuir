@@ -1,9 +1,9 @@
-use chrono::NaiveDateTime;
+use chrono::NaiveDate;
 
 use crate::{
     models::{
         domain::budget::Budget,
-        dtos::{ExpensesSummary, MonthlySummary},
+        dtos::analytics::{ExpensesSummary, MonthlySummary},
     },
     repositories::*,
     shared::error::Result,
@@ -27,9 +27,17 @@ impl AnalyticsController {
     pub async fn get_expenses_summary(
         &self,
         user_id: i64, // хотя репозиторий может требовать список счетов
-        from: NaiveDateTime,
-        to: NaiveDateTime,
+        from: NaiveDate,
+        to: NaiveDate,
     ) -> Result<ExpensesSummary> {
+        todo!()
+    }
+
+    pub async fn get_monthly_summary(
+        &self,
+        user_id: i64,
+        months: u32,
+    ) -> Result<Vec<MonthlySummary>> {
         todo!()
     }
 

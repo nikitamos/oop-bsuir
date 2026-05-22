@@ -1,6 +1,3 @@
-pub struct ExpensesSummary {}
-pub struct MonthlySummary {}
-
 pub mod account;
 pub mod auth;
 pub mod budget;

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use rust_decimal::Decimal;
+
 use crate::{
     models::domain::account::{Account, AccountType},
     repositories::AccountRepository,
@@ -19,6 +21,7 @@ impl AccountController {
         user_id: i64,
         name: String,
         account_type: AccountType,
+        initial_balance: Decimal,
     ) -> Result<Account> {
         todo!()
     }
