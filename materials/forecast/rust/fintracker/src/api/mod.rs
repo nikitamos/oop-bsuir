@@ -222,7 +222,7 @@ pub async fn create_transaction(
     // Check whether the budget has been exceeded
     Ok((
         StatusCode::CREATED,
-        Json(TransactionResponse::from_transaction(transaction, false)),
+        Json(TransactionResponse::from_transaction(transaction.0, transaction.1.is_some())),
     ))
 }
 

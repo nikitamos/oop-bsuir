@@ -1,3 +1,5 @@
+use crate::models::domain::transaction::TransactionType;
+
 pub struct Category {
     pub id: i64,
     pub user_id: i64,
@@ -5,7 +7,4 @@ pub struct Category {
     pub category_type: CategoryType,
 }
 
-pub enum CategoryType {
-    Income,
-    Expense,
-}
+pub type CategoryType = TransactionType;

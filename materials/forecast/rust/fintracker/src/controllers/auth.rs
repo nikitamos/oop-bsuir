@@ -9,7 +9,10 @@ pub struct AuthController {
 
 impl AuthController {
     pub fn new(user_repo: Arc<dyn UserRepository>, jwt_secret: String) -> Self {
-        todo!()
+        Self {
+            user_repo,
+            jwt_secret,
+        }
     }
 
     pub async fn register(&self, email: String, password: String) -> Result<()> {

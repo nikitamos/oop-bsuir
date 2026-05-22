@@ -1,4 +1,6 @@
 pub mod shared {
+    use chrono::{Datelike, NaiveDate, NaiveDateTime, Utc};
+
     pub mod error {
         pub enum ApplicationError {
             NotFound(String),
@@ -8,7 +10,33 @@ pub mod shared {
             Internal(String),
         }
 
-        pub type Result<T> = std::result::Result<T, ApplicationError>;
+        pub type Result<T, E = ApplicationError> = std::result::Result<T, E>;
+    }
+    pub trait DateTimeProvider: Send + Sync {
+        fn today(&self) -> NaiveDate {
+            Utc::now().date_naive()
+        }
+        fn now(&self) -> NaiveDateTime {
+            Utc::now().naive_utc()
+        }
+    }
+
+    #[derive(Default)]
+    pub struct DefaultDateTimeProvider;
+    impl DateTimeProvider for DefaultDateTimeProvider {}
+    pub fn last_day_of_month(date: NaiveDate) -> NaiveDate {
+        let month = date.month();
+        let year = date.year();
+        let (next_year, next_month) = if month == 12 {
+            (year + 1, 1)
+        } else {
+            (year, month + 1)
+        };
+
+        NaiveDate::from_ymd_opt(next_year, next_month, 1)
+            .unwrap()
+            .pred_opt()
+            .unwrap()
     }
 }
 pub mod models {
@@ -17,8 +45,13 @@ pub mod models {
     pub mod db {
         // models/repository.rs
         use super::domain::*;
-        use crate::shared::error::Result;
+        use crate::{
+            models::domain::{budget::Budget, transaction::Transaction},
+            shared::error::Result,
+        };
         use async_trait::async_trait;
+        use chrono::NaiveDate;
+        use rust_decimal::Decimal;
 
         #[async_trait]
         pub trait UserRepository: Send + Sync {
@@ -32,13 +65,13 @@ pub mod models {
             async fn create(&self, account: &account::Account) -> Result<account::Account>;
             async fn find_by_user_id(&self, user_id: i64) -> Result<Vec<account::Account>>;
             async fn find_by_id(&self, id: i64) -> Result<Option<account::Account>>;
-            async fn update_balance(&self, account_id: i64, delta: f64) -> Result<()>;
+            async fn update_balance(&self, account_id: i64, new_balance: Decimal) -> Result<()>;
         }
 
         #[async_trait]
         pub trait CategoryRepository: Send + Sync {
             async fn find_all(&self) -> Result<Vec<category::Category>>;
-            async fn find_by_id(&self, id: i64) -> Result<Option<category::Category>>;
+            async fn find_by_id(&self, id: i64) -> Result<category::Category>;
         }
 
         #[async_trait]
@@ -58,17 +91,33 @@ pub mod models {
                 category_id: i64,
                 month: chrono::NaiveDate,
             ) -> Result<Vec<transaction::Transaction>>;
+            async fn find_by_category_user_period(
+                &self,
+                category_id: i64,
+                user_id: i64,
+                from: NaiveDate,
+                to: NaiveDate,
+            ) -> Result<Vec<transaction::Transaction>>;
+            async fn find_by_user_and_period(
+                &self,
+                user_id: i64,
+                from: NaiveDate,
+                to: NaiveDate,
+            ) -> Result<Vec<Transaction>>;
         }
 
         #[async_trait]
         pub trait BudgetRepository: Send + Sync {
             async fn create(&self, budget: &budget::Budget) -> Result<budget::Budget>;
-            async fn find_by_user_and_month(
+            async fn find_by_user_cat_month(
                 &self,
                 user_id: i64,
+                cat_id: i64,
                 month: chrono::NaiveDate,
-            ) -> Result<Vec<budget::Budget>>;
-            async fn update_spent(&self, budget_id: i64, spent: f64) -> Result<()>;
+            ) -> Result<Option<budget::Budget>>;
+            async fn find_by_user(&self, user_id: i64, month: NaiveDate) -> Result<Vec<Budget>>;
+            async fn update_spent(&self, budget_id: i64, spent: Decimal) -> Result<()>;
+            async fn update(&self, budget: &Budget) -> Result<budget::Budget>;
             async fn find_by_id(&self, id: i64) -> Result<Option<budget::Budget>>;
         }
     }
