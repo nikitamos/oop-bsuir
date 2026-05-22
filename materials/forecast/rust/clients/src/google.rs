@@ -136,7 +136,7 @@ impl<DP: DateProvider> GoogleWeatherClient<DP> {
         let mut body: GoogleForecastResponse = serde_json::de::from_str(&resp.text().await?)?;
         let forecast = body.forecast_days.remove(day);
         Ok(Forecast {
-            temperature: forecast.max_temperature.degrees,
+            temperature: (forecast.max_temperature.degrees + forecast.min_temperature.degrees) / Decimal::from(2),
             wind_direction: crate::deg_to_cardinal(
                 forecast.daytime_forecast.wind.direction.degrees.unwrap(),
             ),
@@ -292,7 +292,7 @@ mod test {
             ],
         };
         gibberish.forecast_days[offset].max_temperature.degrees = max_temp;
-        gibberish.forecast_days[offset].min_temperature.degrees = max_temp;
+        gibberish.forecast_days[offset].min_temperature.degrees = min_temp;
         gibberish.forecast_days[offset]
             .daytime_forecast
             .relative_humidity = 54;
@@ -317,6 +317,7 @@ mod test {
                 target_date,
             )
             .await?;
+        let forecast = dbg!(forecast);
 
         assert_eq!(forecast.len(), 1);
         assert!(
