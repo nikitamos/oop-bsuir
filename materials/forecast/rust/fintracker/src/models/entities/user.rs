@@ -4,12 +4,10 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "users")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = true)]
-    pub id: i64,    
+    pub id: i64,
     #[sea_orm(unique, indexed)]
-    pub email: String, 
-    pub password_hash: String, 
-    #[sea_orm(column_type = "Timestamp")]
-    pub created_at: chrono::NaiveDateTime,
+    pub email: String,
+    pub password_hash: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

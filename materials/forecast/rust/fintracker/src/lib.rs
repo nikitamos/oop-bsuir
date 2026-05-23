@@ -6,6 +6,7 @@ pub mod shared {
             NotFound(String),
             BadRequest(String),
             Unauthorized(String),
+            BadAuthToken(String),
             Conflict(String),
             Internal(String),
         }

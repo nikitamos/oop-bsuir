@@ -69,14 +69,15 @@ pub async fn setup_db(db: &DatabaseConnection) -> Result<(), DbErr> {
     let builder = db.get_database_backend();
     let schema = Schema::new(builder);
     let stmts = [
-        builder.build(&schema.create_table_from_entity(user::Entity)),
-        builder.build(&schema.create_table_from_entity(account::Entity)),
-        builder.build(&schema.create_table_from_entity(category::Entity)),
-        builder.build(&schema.create_table_from_entity(transaction::Entity)),
-        builder.build(&schema.create_table_from_entity(budget::Entity)),
+        (schema.create_table_from_entity(user::Entity)),
+        (schema.create_table_from_entity(account::Entity)),
+        (schema.create_table_from_entity(category::Entity)),
+        (schema.create_table_from_entity(transaction::Entity)),
+        (schema.create_table_from_entity(budget::Entity)),
     ];
-    for stmt in stmts {
-        db.execute(stmt).await?;
+    for mut stmt in stmts {
+        stmt.if_not_exists();
+        db.execute(builder.build(&stmt)).await?;
     }
     Ok(())
 }

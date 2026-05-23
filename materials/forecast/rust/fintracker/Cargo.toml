@@ -7,9 +7,17 @@ edition = "2024"
 anyhow = "1.0.102"
 async-trait.workspace = true
 axum.workspace = true
-chrono = { workspace = true,features = ["serde"] }
+bcrypt = "0.19.1"
+chrono = { workspace = true, features = ["serde"] }
+jsonwebtoken = { version = "10.4.0", features = ["rust_crypto"] }
 rust_decimal = { workspace = true }
-sea-orm = { version = "1.1.20", features = ["sqlx-sqlite", "runtime-tokio", "macros", "with-chrono", "with-rust_decimal"] }
+sea-orm = { version = "1.1.20", features = [
+    "sqlx-sqlite",
+    "runtime-tokio",
+    "macros",
+    "with-chrono",
+    "with-rust_decimal",
+] }
 serde.workspace = true
 tokio = { workspace = true, features = ["net", "tokio-macros"] }
 utoipa = { workspace = true, features = ["axum_extras", "yaml", "chrono"] }

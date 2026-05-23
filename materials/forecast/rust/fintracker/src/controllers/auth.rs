@@ -1,4 +1,7 @@
-use crate::shared::error::Result;
+use crate::{
+    models::domain::user::User,
+    shared::error::{ApplicationError, Result},
+};
 use std::sync::Arc;
 
 use crate::repositories::UserRepository;
@@ -15,8 +18,15 @@ impl AuthController {
         }
     }
 
-    pub async fn register(&self, email: String, password: String) -> Result<()> {
-        todo!()
+    pub async fn register(&self, email: String, password: String) -> Result<i64> {
+        let x = self
+            .user_repo
+            .create(
+                &User::new_with_raw_password(email, password)
+                    .map_err(|e| ApplicationError::Internal(e.to_string()))?,
+            )
+            .await?;
+        Ok(x.id)
     }
     pub async fn login(&self, email: String, password: String) -> Result<()> {
         todo!()

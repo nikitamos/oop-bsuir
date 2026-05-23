@@ -254,7 +254,6 @@ pub mod user {
                 id: self.id,
                 email: self.email,
                 password_hash: self.password_hash,
-                created_at: self.created_at,
             }
         }
     }
@@ -271,7 +270,6 @@ pub mod user {
                 },
                 email: Set(domain.email),
                 password_hash: Set(domain.password_hash),
-                created_at: Set(domain.created_at),
             }
         }
     }

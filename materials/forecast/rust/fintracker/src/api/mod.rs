@@ -1,87 +1,6 @@
-pub mod state {
-    use crate::{
-        controllers::{budget, category, prelude::*, transaction},
-        repositories::RepositoryFactory,
-    };
-    use std::sync::Arc;
-
-    #[derive(Clone)]
-    pub struct AppState {
-        pub auth_service: Arc<AuthController>,
-        pub account_service: Arc<AccountController>,
-        pub transaction_service: Arc<TransactionController>,
-        pub budget_service: Arc<BudgetController>,
-        pub analytics_service: Arc<AnalyticsController>,
-        pub category_service: Arc<CategoryController>,
-    }
-
-    impl AppState {
-        pub fn setup<R: RepositoryFactory>(repo_factory: R) -> Self {
-            let (user, account, category, transaction, budget) = repo_factory.all_dyn();
-
-            Self {
-                auth_service: Arc::new(AuthController::new(
-                    Arc::clone(&user),
-                    "jwt_secret".to_string(),
-                )),
-                account_service: Arc::new(AccountController::new(Arc::clone(&account))),
-                transaction_service: Arc::new(TransactionController::new(
-                    Arc::clone(&transaction),
-                    Arc::clone(&account),
-                    Arc::clone(&budget),
-                    Arc::clone(&category),
-                )),
-                budget_service: Arc::new(BudgetController::new(
-                    Arc::clone(&budget),
-                    Arc::clone(&category),
-                    Arc::clone(&transaction),
-                )),
-                analytics_service: Arc::new(AnalyticsController::new(
-                    transaction,
-                    Arc::clone(&category),
-                )),
-                category_service: Arc::new(CategoryController::new(budget, category)),
-            }
-        }
-    }
-}
-pub mod error {
-    use crate::{models::dtos::ErrorResponse, shared::error::ApplicationError};
-    use axum::{
-        Json,
-        http::StatusCode,
-        response::{IntoResponse, Response},
-    };
-
-    pub struct AppError(pub ApplicationError);
-
-    impl From<ApplicationError> for AppError {
-        fn from(err: ApplicationError) -> Self {
-            AppError(err)
-        }
-    }
-
-    impl IntoResponse for AppError {
-        fn into_response(self) -> Response {
-            let (status, message) = match &self.0 {
-                ApplicationError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
-                ApplicationError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
-                ApplicationError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
-                ApplicationError::Conflict(msg) => (StatusCode::CONFLICT, msg.clone()),
-                ApplicationError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
-            };
-
-            (
-                status,
-                Json(ErrorResponse {
-                    error: status.canonical_reason().unwrap_or("Unknown").to_string(),
-                    message,
-                }),
-            )
-                .into_response()
-        }
-    }
-}
+pub mod auth;
+pub mod error;
+pub mod state;
 
 use crate::{
     api::{error::AppError, state::AppState},
@@ -98,37 +17,15 @@ use crate::{
     shared::error::ApplicationError,
 };
 use axum::{
-    Extension, Json, Router,
-    extract::{FromRequestParts, Path, Query, State},
+    Json, Router,
+    extract::{Path, Query, State},
     http::StatusCode,
-    middleware,
     routing::{get, post},
 };
-use chrono::{Datelike, NaiveDate};
-use utoipa::OpenApi;
+use chrono::Datelike;
 
-pub struct AuthenticatedUser {
-    pub user_id: i64,
-    pub email: String,
-}
-impl<S> FromRequestParts<S> for AuthenticatedUser {
-    type Rejection = AppError;
+pub type AuthenticatedUser = auth::UserIdExtractor;
 
-    fn from_request_parts(
-        parts: &mut axum::http::request::Parts,
-        state: &S,
-    ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
-        async {
-            Ok(Self {
-                user_id: 1,
-                email: "xxx@example.com".to_string(),
-            })
-        }
-    }
-}
-
-// api/auth.rs
-/// Регистрация нового пользователя
 #[utoipa::path(
     post,
     path = "/api/auth/register",
@@ -144,7 +41,21 @@ pub async fn register(
     State(state): State<AppState>,
     Json(request): Json<RegisterRequest>,
 ) -> Result<(StatusCode, Json<AuthResponse>), AppError> {
-    todo!()
+    let user_id = state
+        .auth_service
+        .register(request.email.clone(), request.password)
+        .await?;
+    let token = state
+        .jwt
+        .generate_token(user_id, chrono::Duration::weeks(2).num_seconds() as u64)
+        .map_err(|e| ApplicationError::Internal(e.to_string()))?;
+    Ok((
+        StatusCode::CREATED,
+        Json(AuthResponse {
+            token,
+            email: request.email,
+        }),
+    ))
 }
 
 /// Аутентификация пользователя
