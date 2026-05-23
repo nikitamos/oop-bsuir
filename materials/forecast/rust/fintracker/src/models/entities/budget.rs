@@ -28,7 +28,7 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     User,
-    
+
     #[sea_orm(
         belongs_to = "super::category::Entity",
         from = "Column::CategoryId",

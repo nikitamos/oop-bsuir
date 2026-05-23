@@ -4,15 +4,18 @@ pub mod state;
 
 use crate::{
     api::{error::AppError, state::AppState},
-    models::dtos::{
-        ErrorResponse,
-        account::{AccountResponse, CreateAccountRequest},
-        analytics::{AnalyticsRequest, ExpensesSummary, MonthlySummary},
-        auth::{AuthResponse, LoginRequest, RegisterRequest},
-        budget::{BudgetResponse, SetBudgetRequest},
-        category::CategoryResponse,
-        queries::{MonthCountQuery, MonthQuery},
-        transaction::{CreateTransactionRequest, GetTransactionsRequest, TransactionResponse},
+    models::{
+        domain::category::Category,
+        dtos::{
+            ErrorResponse,
+            account::{AccountResponse, CreateAccountRequest},
+            analytics::{AnalyticsRequest, ExpensesSummary, MonthlySummary},
+            auth::{AuthResponse, LoginRequest, RegisterRequest},
+            budget::{BudgetResponse, SetBudgetRequest},
+            category::{CategoryCreateRequest, CategoryResponse},
+            queries::{MonthCountQuery, MonthQuery},
+            transaction::{CreateTransactionRequest, GetTransactionsRequest, TransactionResponse},
+        },
     },
     shared::error::ApplicationError,
 };
@@ -73,11 +76,22 @@ pub async fn login(
     State(state): State<AppState>,
     Json(request): Json<LoginRequest>,
 ) -> Result<Json<AuthResponse>, AppError> {
-    todo!()
+    let id = state
+        .auth_service
+        .login(request.email.clone(), request.password)
+        .await?;
+    state
+        .jwt
+        .generate_token(id, chrono::Duration::weeks(2).num_seconds() as u64)
+        .map(|token| {
+            Json(AuthResponse {
+                token,
+                email: request.email,
+            })
+        })
+        .map_err(|e| ApplicationError::Internal(e.to_string()).into())
 }
 
-// api/accounts.rs
-/// Создание нового счёта
 #[utoipa::path(
     post,
     path = "/api/accounts",
@@ -377,11 +391,37 @@ pub async fn get_categories(
     State(state): State<AppState>,
     AuthenticatedUser { .. }: AuthenticatedUser,
 ) -> Result<Json<Vec<CategoryResponse>>, AppError> {
-    let categories = state.category_service.get_all_categories().await?;
+    let categories: Vec<Category> = state.category_service.get_all_categories().await?;
 
     let responses: Vec<CategoryResponse> = categories.into_iter().map(Into::into).collect();
-
     Ok(Json(responses))
+}
+#[utoipa::path(
+    post,
+    path = "/api/category/create",
+    responses(
+        (status = 201, description="Category information", body = CategoryResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+    ),
+    request_body = CategoryCreateRequest,
+    tag="categories",
+    security(("jwt" = []))
+)]
+pub async fn create_category(
+    State(state): State<AppState>,
+    AuthenticatedUser { user_id, .. }: AuthenticatedUser,
+    Json(request): Json<CategoryCreateRequest>,
+) -> Result<Json<CategoryResponse>, AppError> {
+    let cat_id = state
+        .category_service
+        .create_category(user_id, request.name.clone(), request.category_type.into())
+        .await?;
+    Ok(CategoryResponse {
+        id: cat_id,
+        name: request.name,
+        category_type: request.category_type,
+    }
+    .into())
 }
 
 pub fn build_router(state: AppState) -> Router {

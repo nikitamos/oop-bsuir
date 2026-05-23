@@ -28,7 +28,18 @@ impl AuthController {
             .await?;
         Ok(x.id)
     }
-    pub async fn login(&self, email: String, password: String) -> Result<()> {
-        todo!()
+    pub async fn login(&self, email: String, password: String) -> Result<i64> {
+        let Some(user_model) = self.user_repo.find_by_email(&email).await? else {
+            return Err(ApplicationError::NotFound("No such user".to_string()));
+        };
+        let user = User::new_with_raw_password(email, password)
+            .map_err(|e| ApplicationError::Internal(e.to_string()))?;
+        if user.password_hash == user_model.password_hash {
+            Ok(user.id)
+        } else {
+            Err(ApplicationError::BadRequest(
+                "Invalid credentials".to_string(),
+            ))
+        }
     }
 }

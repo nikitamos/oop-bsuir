@@ -50,7 +50,7 @@ pub mod models {
         // models/db.rs
         use super::domain::*;
         use crate::{
-            models::domain::{budget::Budget, transaction::Transaction},
+            models::domain::{budget::Budget, category::Category, transaction::Transaction},
             shared::error::Result,
         };
         use async_trait::async_trait;
@@ -100,6 +100,7 @@ pub mod models {
         pub trait CategoryRepository: Send + Sync {
             async fn find_all(&self) -> Result<Vec<category::Category>>;
             async fn find_by_id(&self, id: i64) -> Result<category::Category>;
+            async fn create(&self, category: Category) -> Result<i64>;
         }
 
         #[async_trait]

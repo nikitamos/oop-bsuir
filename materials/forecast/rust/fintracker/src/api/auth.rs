@@ -49,6 +49,7 @@ impl JwtState {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct UserIdExtractor {
     pub user_id: i64,
 }

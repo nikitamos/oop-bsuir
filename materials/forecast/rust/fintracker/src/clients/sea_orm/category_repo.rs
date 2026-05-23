@@ -1,12 +1,10 @@
 use async_trait::async_trait;
-use sea_orm::{EntityTrait};
+use sea_orm::{ActiveModelTrait, ActiveValue, EntityTrait};
 
 use crate::{
     models::{
         domain::category::Category as DomainCategory,
-        entities::{
-            category::{Entity as CategoryEntity},
-        },
+        entities::category::{ActiveModel, Entity as CategoryEntity},
     },
     shared::error::Result,
 };
@@ -36,8 +34,21 @@ impl super::CategoryRepository for SeaOrmCategoryRepository {
             .one(&self.db)
             .await
             .map_db_err()?
-            .ok_or(crate::shared::error::ApplicationError::NotFound(format!("Category with id {id} was not found")))?;
+            .ok_or(crate::shared::error::ApplicationError::NotFound(format!(
+                "Category with id {id} was not found"
+            )))?;
 
         Ok(entity.into_domain())
+    }
+
+    async fn create(&self, category: DomainCategory) -> Result<i64> {
+        let model = ActiveModel {
+            id: ActiveValue::NotSet,
+            user_id: ActiveValue::Set(category.user_id),
+            name: ActiveValue::Set(category.name),
+            category_type: ActiveValue::Set(category.category_type.into()),
+        };
+        let saved = model.insert(&self.db).await.map_db_err()?;
+        Ok(saved.id)
     }
 }

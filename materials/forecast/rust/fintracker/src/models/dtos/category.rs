@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::models::domain::category::{Category, CategoryType};
@@ -7,6 +7,14 @@ use crate::models::domain::category::{Category, CategoryType};
 pub struct CategoryResponse {
     pub id: i64,
     pub name: String,
+    pub category_type: CategoryTypeDto,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CategoryCreateRequest {
+    #[schema(example = "Traveling")]
+    pub name: String,
+    #[schema(example = CategoryTypeDto::Expense)]
     pub category_type: CategoryTypeDto,
 }
 
@@ -20,7 +28,7 @@ impl From<Category> for CategoryResponse {
     }
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum CategoryTypeDto {
     Expense,

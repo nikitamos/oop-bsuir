@@ -32,7 +32,7 @@ impl super::BudgetRepository for SeaOrmBudgetRepository {
             category_id: Set(budget.category_id),
             amount_limit: Set(budget.amount_limit),
             month: Set(budget.month),
-            current_spent: Set(Decimal::ZERO), // Новый бюджет начинается с 0
+            current_spent: Set(Decimal::ZERO),
             updated_at: Set(chrono::Utc::now().naive_utc()),
         };
 

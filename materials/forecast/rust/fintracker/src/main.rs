@@ -45,7 +45,6 @@ use fintracker::{api, clients};
     info(
         title = "Personal Finance Tracker API",
         version = "1.0.0",
-        description = "API для отслеживания личных финансов"
     )
 )]
 pub struct ApiDoc;
@@ -55,9 +54,12 @@ struct SecurityAddon;
 impl utoipa::Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         if let Some(components) = openapi.components.as_mut() {
+            let mut http_auth = Http::new(HttpAuthScheme::Bearer);
+            http_auth.bearer_format = Some("JWT token issued by `auth` APIs".to_string());
+            let scheme = SecurityScheme::Http(http_auth);
             components.add_security_scheme(
                 "jwt",
-                SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
+                scheme,
             )
         }
     }
