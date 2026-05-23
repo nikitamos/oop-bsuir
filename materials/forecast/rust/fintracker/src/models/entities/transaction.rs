@@ -16,24 +16,24 @@ pub enum TransactionType {
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = true)]
     pub id: i64,
-    
+
     pub account_id: i64,
-    
+
     pub category_id: i64,
-    
+
     /// Сумма в минимальных единицах валюты
-    #[sea_orm(column_type = "Decimal(Some((19, 2)))")]
+    #[sea_orm(column_type = "Decimal(Some((16, 2)))")]
     pub amount: Decimal,
-    
+
     #[sea_orm(enum_name = "TransactionType")]
     pub transaction_type: TransactionType,
-    
+
     #[sea_orm(column_type = "String(StringLen::N(500))", nullable)]
     pub description: Option<String>,
-    
+
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub transaction_date: chrono::NaiveDateTime,
-    
+
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: chrono::NaiveDateTime,
 }

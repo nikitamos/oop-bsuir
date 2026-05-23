@@ -8,11 +8,11 @@ pub struct Model {
     pub id: i64,
     pub user_id: i64,
     pub category_id: i64,
-    #[sea_orm(column_type = "Decimal(Some((19, 2)))")]
+    #[sea_orm(column_type = "Decimal(Some((16, 2)))")]
     pub amount_limit: Decimal,
     #[sea_orm(column_type = "Date")]
     pub month: chrono::NaiveDate,
-    #[sea_orm(column_type = "Decimal(Some((19, 2)))", default_value = "0")]
+    #[sea_orm(column_type = "Decimal(Some((16, 2)))", default_value = "0")]
     pub current_spent: Decimal,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub updated_at: chrono::NaiveDateTime,

@@ -3,3 +3,4 @@
 *.profraw
 trace
 info
+*.sqlite3

@@ -1,6 +1,5 @@
-use fintracker::clients::sea_orm::SeaOrmRepositoryFactory;
+use fintracker::clients::sea_orm::{SeaOrmRepositoryFactory, setup_db};
 use sea_orm::Database;
-// api/openapi.rs
 use utoipa::OpenApi;
 use utoipa::openapi::security::{Http, HttpAuthScheme, SecurityScheme};
 use utoipa_swagger_ui::SwaggerUi;
@@ -64,20 +63,10 @@ impl utoipa::Modify for SecurityAddon {
     }
 }
 
-// Монтирование Swagger UI в роутер
-pub fn swagger_routes() -> Router {
-    Router::new()
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-}
-
-use axum::Router;
-use std::sync::Arc;
-
-// use crate::models::{api, application, clients, domain, shared};
-
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let db = Database::connect("sqlite://db.sqlite3?mode=rwc").await?;
+    setup_db(&db).await?;
     let repo_factory = SeaOrmRepositoryFactory::new(db);
 
     let state = api::state::AppState::setup(repo_factory);

@@ -1,4 +1,7 @@
-use crate::models::db::*;
+use crate::models::{
+    db::*,
+    entities::{account, budget, category, transaction, user},
+};
 
 mod conversion;
 mod error {
@@ -34,6 +37,7 @@ pub mod prelude {
 }
 
 use prelude::*;
+use sea_orm::{ConnectionTrait, Database, DatabaseConnection, DbErr, Schema};
 pub struct SeaOrmRepositoryFactory {
     db: sea_orm::DatabaseConnection,
 }
@@ -59,4 +63,20 @@ impl RepositoryFactory for SeaOrmRepositoryFactory {
     fn budget_repo(&self) -> impl BudgetRepository + 'static {
         SeaOrmBudgetRepository::new(self.db.clone())
     }
+}
+
+pub async fn setup_db(db: &DatabaseConnection) -> Result<(), DbErr> {
+    let builder = db.get_database_backend();
+    let schema = Schema::new(builder);
+    let stmts = [
+        builder.build(&schema.create_table_from_entity(user::Entity)),
+        builder.build(&schema.create_table_from_entity(account::Entity)),
+        builder.build(&schema.create_table_from_entity(category::Entity)),
+        builder.build(&schema.create_table_from_entity(transaction::Entity)),
+        builder.build(&schema.create_table_from_entity(budget::Entity)),
+    ];
+    for stmt in stmts {
+        db.execute(stmt).await?;
+    }
+    Ok(())
 }

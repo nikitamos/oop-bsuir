@@ -20,7 +20,7 @@ pub struct Model {
     pub name: String,
     #[sea_orm(enum_name = "AccountType")]
     pub account_type: AccountType,
-    #[sea_orm(column_type = "Decimal(Some((19, 2)))")]
+    #[sea_orm(column_type = "Decimal(Some((16, 2)))")]
     pub balance: Decimal,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: chrono::NaiveDateTime,
