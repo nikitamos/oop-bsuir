@@ -53,6 +53,13 @@ pub mod models {
         use async_trait::async_trait;
         use chrono::NaiveDate;
         use rust_decimal::Decimal;
+        pub trait RepositoryFactory {
+            fn user_repo(&self) -> impl UserRepository;
+            fn account_repo(&self) -> impl AccountRepository;
+            fn category_repo(&self) -> impl CategoryRepository;
+            fn transaction_repo(&self) -> impl TransactionRepository;
+            fn budget_repo(&self) -> impl BudgetRepository;
+        }
 
         #[async_trait]
         pub trait UserRepository: Send + Sync {
