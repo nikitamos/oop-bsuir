@@ -32,8 +32,13 @@ impl AuthController {
         let Some(user_model) = self.user_repo.find_by_email(&email).await? else {
             return Err(ApplicationError::NotFound("No such user".to_string()));
         };
-        let user = User::new_with_raw_password(email, password)
-            .map_err(|e| ApplicationError::Internal(e.to_string()))?;
+        let user = User::verify(
+            user_model.id,
+            email,
+            password,
+            user_model.password_hash.clone(),
+        )
+        .ok_or_else(|| ApplicationError::BadRequest("Invalid credentials".to_string()))?;
         if user.password_hash == user_model.password_hash {
             Ok(user.id)
         } else {

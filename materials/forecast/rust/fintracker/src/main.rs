@@ -1,5 +1,12 @@
 use fintracker::clients::sea_orm::{SeaOrmRepositoryFactory, setup_db};
 use sea_orm::Database;
+use tower_http::trace::TraceLayer;
+use tracing::Level;
+use tracing_subscriber::filter::FilterExt;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::registry::LookupSpan;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{Layer, filter};
 use utoipa::OpenApi;
 use utoipa::openapi::security::{Http, HttpAuthScheme, SecurityScheme};
 use utoipa_swagger_ui::SwaggerUi;
@@ -57,16 +64,31 @@ impl utoipa::Modify for SecurityAddon {
             let mut http_auth = Http::new(HttpAuthScheme::Bearer);
             http_auth.bearer_format = Some("JWT token issued by `auth` APIs".to_string());
             let scheme = SecurityScheme::Http(http_auth);
-            components.add_security_scheme(
-                "jwt",
-                scheme,
-            )
+            components.add_security_scheme("jwt", scheme)
         }
     }
 }
 
+fn setup_tracing() {
+    use tracing_subscriber::fmt;
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                format!(
+                    "sqlx=warn,sea_orm=warn,tower_http=debug,{}=debug",
+                    env!("CARGO_CRATE_NAME")
+                )
+                .into()
+            }),
+        )
+        .with(fmt::layer().event_format(fmt::format().without_time()))
+        .init();
+}
+
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
+    setup_tracing();
+
     let db = Database::connect("sqlite://db.sqlite3?mode=rwc").await?;
     setup_db(&db).await?;
     let repo_factory = SeaOrmRepositoryFactory::new(db);
@@ -76,7 +98,8 @@ async fn main() -> Result<(), anyhow::Error> {
     let doc = <ApiDoc as OpenApi>::openapi();
     let app = api::build_router(state)
         .merge(SwaggerUi::new("/swagger/index.html").url("/api-docs/openapi.json", doc))
-        .with_state(());
+        .with_state(())
+        .layer(TraceLayer::new_for_http());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("Server running on http://localhost:3000");

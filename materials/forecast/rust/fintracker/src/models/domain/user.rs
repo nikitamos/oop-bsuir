@@ -1,4 +1,4 @@
-use bcrypt::{BcryptError, DEFAULT_COST, hash};
+use bcrypt::{BcryptError, DEFAULT_COST, HashParts, hash, verify};
 
 #[derive(Clone)]
 pub struct User {
@@ -19,5 +19,16 @@ impl User {
             email: email.into(),
             password_hash,
         })
+    }
+    pub fn verify(id: i64, email: String, password: impl AsRef<str>, hash: String) -> Option<Self> {
+        if let Ok(true) = verify(password.as_ref(), hash.as_ref()) {
+            Some(Self {
+                id,
+                email,
+                password_hash: hash,
+            })
+        } else {
+            None
+        }
     }
 }

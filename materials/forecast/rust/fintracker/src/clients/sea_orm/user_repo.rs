@@ -24,11 +24,11 @@ impl SeaOrmUserRepository {
 #[async_trait]
 impl super::UserRepository for SeaOrmUserRepository {
     async fn find_by_email(&self, email: &str) -> Result<Option<DomainUser>> {
-        let entity = UserEntity::find()
+        let query = UserEntity::find()
             .filter(user::Column::Email.eq(email))
             .one(&self.db)
-            .await
-            .map_db_err()?;
+            .await;
+        let entity = query.map_db_err()?;
 
         Ok(entity.map(|e| e.into_domain()))
     }
