@@ -1,3 +1,5 @@
+use fintracker::clients::sea_orm::SeaOrmRepositoryFactory;
+use sea_orm::Database;
 // api/openapi.rs
 use utoipa::OpenApi;
 use utoipa::openapi::security::{Http, HttpAuthScheme, SecurityScheme};
@@ -74,57 +76,20 @@ use std::sync::Arc;
 // use crate::models::{api, application, clients, domain, shared};
 
 #[tokio::main]
-async fn main() {
-    // Инициализация БД
-    // let db = fintracker::clients::db::connect().await;
-    // clients::db::run_migrations(&db).await;
+async fn main() -> Result<(), anyhow::Error> {
+    let db = Database::connect("sqlite://db.sqlite3?mode=rwc").await?;
+    let repo_factory = SeaOrmRepositoryFactory::new(db);
 
-    // Репозитории (SeaORM реализации)
-    // let user_repo = Arc::new(clients::user_repo::SeaOrmUserRepo::new(db.clone()));
-    // let account_repo = Arc::new(clients::account_repo::SeaOrmAccountRepo::new(db.clone()));
-    // let category_repo = Arc::new(clients::category_repo::SeaOrmCategoryRepo::new(db.clone()));
-    // let transaction_repo = Arc::new(clients::transaction_repo::SeaOrmTransactionRepo::new(
-    //     db.clone(),
-    // ));
-    // let budget_repo = Arc::new(clients::budget_repo::SeaOrmBudgetRepo::new(db.clone()));
-
-    // let auth_service = Arc::new(application::AuthService::new(
-    //     user_repo.clone(),
-    //     std::env::var("JWT_SECRET").unwrap_or_default(),
-    // ));
-    // let account_service = Arc::new(application::AccountService::new(account_repo));
-    // let transaction_service = Arc::new(application::TransactionService::new(
-    //     transaction_repo,
-    //     account_repo,
-    //     budget_repo,
-    //     category_repo.clone(),
-    // ));
-    // let budget_service = Arc::new(application::BudgetService::new(
-    //     budget_repo,
-    //     category_repo.clone(),
-    // ));
-    // let analytics_service = Arc::new(application::AnalyticsService::new(
-    //     transaction_repo,
-    //     category_repo,
-    // ));
-
-    // // Состояние приложения
-    // let state = api::state::AppState {
-    //     auth_service,
-    //     account_service,
-    //     transaction_service,
-    //     budget_service,
-    //     analytics_service,
-    // };
+    let state = api::state::AppState::setup(repo_factory);
 
     let doc = <ApiDoc as OpenApi>::openapi();
-    // let app = api::build_router(state).merge(api::openapi::swagger_routes());
-    let app = axum::Router::new()
+    let app = api::build_router(state)
         .merge(SwaggerUi::new("/swagger/index.html").url("/api-docs/openapi.json", doc))
         .with_state(());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("Server running on http://localhost:3000");
     println!("Swagger UI: http://localhost:3000/swagger-ui");
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app).await?;
+    Ok(())
 }

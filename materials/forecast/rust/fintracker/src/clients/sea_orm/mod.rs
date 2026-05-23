@@ -44,19 +44,19 @@ impl SeaOrmRepositoryFactory {
 }
 
 impl RepositoryFactory for SeaOrmRepositoryFactory {
-    fn user_repo(&self) -> impl UserRepository {
+    fn user_repo(&self) -> impl UserRepository + 'static {
         SeaOrmUserRepository::new(self.db.clone())
     }
-    fn account_repo(&self) -> impl AccountRepository {
+    fn account_repo(&self) -> impl AccountRepository + 'static {
         SeaOrmAccountRepository::new(self.db.clone())
     }
-    fn category_repo(&self) -> impl CategoryRepository {
+    fn category_repo(&self) -> impl CategoryRepository + 'static {
         SeaOrmCategoryRepository::new(self.db.clone())
     }
-    fn transaction_repo(&self) -> impl TransactionRepository {
+    fn transaction_repo(&self) -> impl TransactionRepository + 'static {
         SeaOrmTransactionRepository::new(self.db.clone())
     }
-    fn budget_repo(&self) -> impl BudgetRepository {
+    fn budget_repo(&self) -> impl BudgetRepository + 'static {
         SeaOrmBudgetRepository::new(self.db.clone())
     }
 }

@@ -44,6 +44,8 @@ pub mod models {
     pub mod dtos;
     pub mod entities;
     pub mod db {
+        use std::sync::Arc;
+
         // models/db.rs
         use super::domain::*;
         use crate::{
@@ -54,11 +56,28 @@ pub mod models {
         use chrono::NaiveDate;
         use rust_decimal::Decimal;
         pub trait RepositoryFactory {
-            fn user_repo(&self) -> impl UserRepository;
-            fn account_repo(&self) -> impl AccountRepository;
-            fn category_repo(&self) -> impl CategoryRepository;
-            fn transaction_repo(&self) -> impl TransactionRepository;
-            fn budget_repo(&self) -> impl BudgetRepository;
+            fn user_repo(&self) -> impl UserRepository + 'static;
+            fn account_repo(&self) -> impl AccountRepository + 'static;
+            fn category_repo(&self) -> impl CategoryRepository + 'static;
+            fn transaction_repo(&self) -> impl TransactionRepository + 'static;
+            fn budget_repo(&self) -> impl BudgetRepository + 'static;
+            fn all_dyn(
+                &self,
+            ) -> (
+                Arc<dyn UserRepository>,
+                Arc<dyn AccountRepository>,
+                Arc<dyn CategoryRepository>,
+                Arc<dyn TransactionRepository>,
+                Arc<dyn BudgetRepository>,
+            ) {
+                (
+                    Arc::new(self.user_repo()),
+                    Arc::new(self.account_repo()),
+                    Arc::new(self.category_repo()),
+                    Arc::new(self.transaction_repo()),
+                    Arc::new(self.budget_repo()),
+                )
+            }
         }
 
         #[async_trait]
