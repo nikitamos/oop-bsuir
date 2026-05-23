@@ -44,7 +44,7 @@ pub mod models {
     pub mod dtos;
     pub mod entities;
     pub mod db {
-        // models/repository.rs
+        // models/db.rs
         use super::domain::*;
         use crate::{
             models::domain::{budget::Budget, transaction::Transaction},

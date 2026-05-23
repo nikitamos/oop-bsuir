@@ -2,6 +2,7 @@ use chrono::NaiveDate;
 
 use rust_decimal::{Decimal, dec, prelude::ToPrimitive};
 
+#[derive(Clone)]
 pub struct Budget {
     pub id: i64,
     pub user_id: i64,
