@@ -33,19 +33,8 @@ const TEST_SECRET: &[u8] = b"dd"; // Must match AppState::setup
 // ─────────────────────────────────────────────────────────────
 
 #[fixture]
-async fn db() -> DatabaseConnection {
-    let db = Database::connect(TEST_DB).await.unwrap();
-    setup_db(&db).await.unwrap();
-    db
-}
-
-#[fixture]
-async fn app_state(#[future] db: DatabaseConnection) -> AppState {
-    AppState::setup(SeaOrmRepositoryFactory::new(db.await))
-}
-
-#[fixture]
-async fn test_server(#[future] app_state: AppState) -> TestServer {
+async fn test_server_and_db() -> (TestServer, DatabaseConnection) {
+    // Initialize tracing once per test run (ignore errors if already initialized)
     let _ = tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
@@ -54,7 +43,21 @@ async fn test_server(#[future] app_state: AppState) -> TestServer {
         )
         .with(fmt::layer().event_format(fmt::format().without_time()))
         .try_init();
-    TestServer::new(routes(app_state.await).layer(TraceLayer::new_for_http()))
+
+    // 1. Create and setup database
+    let db = Database::connect(TEST_DB).await.unwrap();
+    setup_db(&db).await.unwrap();
+
+    // 2. Create repository factory and app state
+    let repo = SeaOrmRepositoryFactory::new(db.clone());
+    let app_state = AppState::setup(repo);
+
+    // 3. Build router and test server
+    let router = routes(app_state).layer(TraceLayer::new_for_http());
+    let server = TestServer::new(router);
+
+    // 4. Return both server and db connection (db is Arc'd, so cloning is cheap)
+    (server, db)
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -126,12 +129,8 @@ async fn seed_account(db: &DatabaseConnection, user_id: i64, name: &str, balance
 
 #[rstest]
 #[tokio::test]
-async fn test_register_success(
-    #[future] test_server: TestServer,
-    #[future] db: DatabaseConnection,
-) {
-    let server = test_server.await;
-    let db = db.await;
+async fn test_register_success(#[future] test_server_and_db: (TestServer, DatabaseConnection)) {
+    let (server, db) = test_server_and_db.await;
 
     let response = server
         .post("/api/auth/register")
@@ -157,19 +156,17 @@ async fn test_register_success(
 
 #[rstest]
 #[tokio::test]
-async fn test_login_success(#[future] test_server: TestServer, #[future] db: DatabaseConnection) {
-    let db = db.await;
-    let server = test_server.await;
+async fn test_login_success(#[future] test_server_and_db: (TestServer, DatabaseConnection)) {
+    let (server, db) = test_server_and_db.await;
+
     // Seed a known user
     let user_id = seed_user(&db, "login@test.com", "hashed_pw").await;
 
-    // Note: In real tests you'd hash the password properly.
-    // For now, we assume the auth service accepts the plaintext for testing.
     let response = server
         .post("/api/auth/login")
         .json(&json!({
             "email": "login@test.com",
-            "password": "hashed_pw" // This works because our test setup uses plaintext comparison
+            "password": "hashed_pw"
         }))
         .await;
 
@@ -181,8 +178,10 @@ async fn test_login_success(#[future] test_server: TestServer, #[future] db: Dat
 
 #[rstest]
 #[tokio::test]
-async fn test_login_invalid_credentials(#[future] test_server: TestServer) {
-    let server = test_server.await;
+async fn test_login_invalid_credentials(
+    #[future] test_server_and_db: (TestServer, DatabaseConnection),
+) {
+    let (server, _) = test_server_and_db.await;
 
     let response = server
         .post("/api/auth/login")
@@ -201,8 +200,10 @@ async fn test_login_invalid_credentials(#[future] test_server: TestServer) {
 
 #[rstest]
 #[tokio::test]
-async fn test_get_accounts_requires_auth(#[future] test_server: TestServer) {
-    let server = test_server.await;
+async fn test_get_accounts_requires_auth(
+    #[future] test_server_and_db: (TestServer, DatabaseConnection),
+) {
+    let (server, _) = test_server_and_db.await;
 
     let response = server.get("/api/accounts").await;
     assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
@@ -210,17 +211,14 @@ async fn test_get_accounts_requires_auth(#[future] test_server: TestServer) {
 
 #[rstest]
 #[tokio::test]
-async fn test_get_accounts_success(
-    #[future] test_server: TestServer,
-    #[future] db: DatabaseConnection,
-) {
-    let db = db.await;
+async fn test_get_accounts_success(#[future] test_server_and_db: (TestServer, DatabaseConnection)) {
+    let (server, db) = test_server_and_db.await;
+
     let user_id = seed_user(&db, "accounts@test.com", "pw").await;
     let _acc1 = seed_account(&db, user_id, "Checking", Decimal::from(100)).await;
     let _acc2 = seed_account(&db, user_id, "Savings", Decimal::from(500)).await;
 
     let token = generate_test_token(user_id, 3600);
-    let server = test_server.await;
 
     let response = server
         .get("/api/accounts")
@@ -237,16 +235,15 @@ async fn test_get_accounts_success(
 #[rstest]
 #[tokio::test]
 async fn test_create_transaction_success(
-    #[future] test_server: TestServer,
-    #[future] db: DatabaseConnection,
+    #[future] test_server_and_db: (TestServer, DatabaseConnection),
 ) {
-    let db = db.await;
+    let (server, db) = test_server_and_db.await;
+
     let user_id = seed_user(&db, "txn@test.com", "pw").await;
     let cat_id = seed_category(&db, "Groceries", user_id).await;
     let acc_id = seed_account(&db, user_id, "Wallet", Decimal::from(1000)).await;
 
     let token = generate_test_token(user_id, 3600);
-    let server = test_server.await;
 
     let response = server
         .post("/api/transactions")
@@ -287,16 +284,15 @@ async fn test_create_transaction_success(
 #[rstest]
 #[tokio::test]
 async fn test_get_categories_success(
-    #[future] test_server: TestServer,
-    #[future] db: DatabaseConnection,
+    #[future] test_server_and_db: (TestServer, DatabaseConnection),
 ) {
-    let db = db.await;
+    let (server, db) = test_server_and_db.await;
+
     let user_id = seed_user(&db, "cat@test.com", "pw").await;
     let _cat1 = seed_category(&db, "Food", user_id).await;
     let _cat2 = seed_category(&db, "Transport", user_id).await;
 
     let token = generate_test_token(user_id, 3600);
-    let server = test_server.await;
 
     let response = server
         .get("/api/categories")
@@ -316,16 +312,15 @@ async fn test_get_categories_success(
 #[rstest]
 #[tokio::test]
 async fn test_create_transaction_insufficient_funds(
-    #[future] test_server: TestServer,
-    #[future] db: DatabaseConnection,
+    #[future] test_server_and_db: (TestServer, DatabaseConnection),
 ) {
-    let db = db.await;
+    let (server, db) = test_server_and_db.await;
+
     let user_id = seed_user(&db, "broke@test.com", "pw").await;
     let cat_id = seed_category(&db, "Luxury", user_id).await;
     let acc_id = seed_account(&db, user_id, "Empty", Decimal::from(10)).await;
 
     let token = generate_test_token(user_id, 3600);
-    let server = test_server.await;
 
     let response = server
         .post("/api/transactions")
@@ -333,7 +328,7 @@ async fn test_create_transaction_insufficient_funds(
         .json(&json!({
             "account_id": acc_id,
             "category_id": cat_id,
-            "amount": "100.00", // More than balance
+            "amount": "100.00",
             "transaction_type": "expense",
             "description": "Overspend"
         }))
@@ -347,8 +342,8 @@ async fn test_create_transaction_insufficient_funds(
 
 #[rstest]
 #[tokio::test]
-async fn test_invalid_jwt_token(#[future] test_server: TestServer) {
-    let server = test_server.await;
+async fn test_invalid_jwt_token(#[future] test_server_and_db: (TestServer, DatabaseConnection)) {
+    let (server, _) = test_server_and_db.await;
 
     let response = server
         .get("/api/accounts")
@@ -360,8 +355,8 @@ async fn test_invalid_jwt_token(#[future] test_server: TestServer) {
 
 #[rstest]
 #[tokio::test]
-async fn test_missing_auth_header(#[future] test_server: TestServer) {
-    let server = test_server.await;
+async fn test_missing_auth_header(#[future] test_server_and_db: (TestServer, DatabaseConnection)) {
+    let (server, _) = test_server_and_db.await;
 
     let response = server.get("/api/accounts").await;
     assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
