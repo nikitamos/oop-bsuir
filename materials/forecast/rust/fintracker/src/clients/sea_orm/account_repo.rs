@@ -4,6 +4,7 @@ use sea_orm::{ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, QueryFilt
 
 use crate::{
     models::{
+        self,
         domain::account::Account as DomainAccount,
         entities::account::{self, AccountType as DbAccountType, Entity as AccountEntity},
     },
@@ -52,8 +53,9 @@ impl super::AccountRepository for SeaOrmAccountRepository {
         Ok(entities.into_iter().map(|e| e.into()).collect())
     }
 
-    async fn find_by_id(&self, id: i64) -> Result<Option<DomainAccount>> {
+    async fn find_by_id(&self, id: i64, owner_id: Option<i64>) -> Result<Option<DomainAccount>> {
         let entity = AccountEntity::find_by_id(id)
+            .filter(account::Column::UserId.eq(owner_id))
             .one(&self.db)
             .await
             .map_db_err()?;

@@ -92,7 +92,11 @@ pub mod models {
         pub trait AccountRepository: Send + Sync {
             async fn create(&self, account: &account::Account) -> Result<account::Account>;
             async fn find_by_user_id(&self, user_id: i64) -> Result<Vec<account::Account>>;
-            async fn find_by_id(&self, id: i64) -> Result<Option<account::Account>>;
+            async fn find_by_id(
+                &self,
+                id: i64,
+                owner_id: Option<i64>,
+            ) -> Result<Option<account::Account>>;
             async fn update_balance(&self, account_id: i64, new_balance: Decimal) -> Result<()>;
         }
 

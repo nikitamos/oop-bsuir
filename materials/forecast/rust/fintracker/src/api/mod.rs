@@ -174,6 +174,7 @@ pub async fn create_transaction(
         .create_transaction(
             request.account_id,
             request.category_id,
+            user_id,
             request.amount,
             request.transaction_type.into(),
             request.description,

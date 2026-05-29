@@ -32,13 +32,14 @@ impl TransactionController {
         &self,
         account_id: i64,
         category_id: i64,
+        user_id: i64,
         amount: Decimal,
         transaction_type: TransactionType,
         description: Option<String>,
     ) -> Result<(Transaction, Option<String>)> {
         let mut account = self
             .account_repo
-            .find_by_id(account_id)
+            .find_by_id(account_id, Some(user_id))
             .await?
             .ok_or_else(|| {
                 ApplicationError::NotFound(format!("Account with id {} not found", account_id))
