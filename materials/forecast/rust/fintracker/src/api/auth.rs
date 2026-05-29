@@ -56,7 +56,8 @@ pub struct UserIdExtractor {
 
 fn verify_token(token: &str, jwt_state: &JwtState) -> Result<i64> {
     let token_data = decode::<Claims>(token, &jwt_state.decoding_key, &jwt_state.validation)
-        .map_err(|_| {
+        .map_err(|error| {
+            tracing::warn!(message="invalid JWT token passed", verification = ?error);
             crate::shared::error::ApplicationError::BadAuthToken("Invalid auth token".to_string())
         })?;
     Ok(token_data.claims.user_id)

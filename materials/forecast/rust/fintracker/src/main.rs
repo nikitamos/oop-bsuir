@@ -102,8 +102,8 @@ async fn main() -> Result<(), anyhow::Error> {
         .layer(TraceLayer::new_for_http());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("Server running on http://localhost:3000");
-    println!("Swagger UI: http://localhost:3000/swagger-ui");
+    tracing::info!("Server running on http://localhost:3000");
+    tracing::info!("Swagger UI: http://localhost:3000/swagger-ui");
     axum::serve(listener, app).await?;
     Ok(())
 }

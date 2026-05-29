@@ -89,7 +89,10 @@ pub async fn login(
                 email: request.email,
             })
         })
-        .map_err(|e| ApplicationError::Internal(e.to_string()).into())
+        .map_err(|error| {
+            tracing::error!(message = "jwt generation failed", %error);
+            ApplicationError::Internal(error.to_string()).into()
+        })
 }
 
 #[utoipa::path(
@@ -166,7 +169,6 @@ pub async fn create_transaction(
     AuthenticatedUser { user_id, .. }: AuthenticatedUser,
     Json(request): Json<CreateTransactionRequest>,
 ) -> Result<(StatusCode, Json<TransactionResponse>), AppError> {
-    // Validate that account belongs to the user?
     let transaction = state
         .transaction_service
         .create_transaction(
@@ -177,7 +179,6 @@ pub async fn create_transaction(
             request.description,
         )
         .await?;
-    // Check whether the budget has been exceeded
     Ok((
         StatusCode::CREATED,
         Json(TransactionResponse::from_transaction(
