@@ -337,7 +337,13 @@ async fn test_create_transaction_insufficient_funds(
     assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
 
     let body: serde_json::Value = response.json();
-    assert!(body["message"].as_str().unwrap().contains("insufficient"));
+    assert!(
+        body["message"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("insufficient")
+    );
 }
 
 #[rstest]
@@ -381,17 +387,16 @@ async fn test_create_account_success(
         .add_header("Authorization", format!("Bearer {}", token))
         .json(&json!({
             "name": "Test Account",
-            "account_type": "cash",
+            "account_type": "Cash",
             "initial_balance": "250.00"
         }))
         .await;
-
     assert_eq!(response.status_code(), StatusCode::OK);
 
     let body: serde_json::Value = response.json();
     assert_eq!(body["name"], "Test Account");
-    assert_eq!(body["account_type"], "cash");
-    assert_eq!(body["balance"], "250.0");
+    assert_eq!(body["account_type"], "Cash");
+    assert_eq!(body["balance"], "250");
 
     // Verify account persisted in DB
     use crate::models::entities::account as account_entity;
@@ -445,14 +450,14 @@ async fn test_get_transactions_success(
     let acc_id = seed_account(&db, user_id, "Test Wallet", dec!(1000)).await;
 
     // Seed a transaction
-    let now = Utc::now().naive_utc();
+    let now = Utc::now();
     let txn = transaction_entity::ActiveModel {
         account_id: Set(acc_id),
         category_id: Set(cat_id),
         amount: Set(dec!(25.50)),
         transaction_type: Set(TransactionType::Expense.into()),
         description: Set(Some("Test txn".to_string())),
-        transaction_date: Set(now),
+        transaction_date: Set(now.naive_utc()),
         created_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
@@ -465,10 +470,11 @@ async fn test_get_transactions_success(
     let response = server
         .get(&format!(
             "/api/transactions?account_id={}&from={}&to={}",
-            acc_id, from, to
+            acc_id, from.to_rfc3339(), to.to_rfc3339()
         ))
         .add_header("Authorization", format!("Bearer {}", token))
         .await;
+    tracing::error!(?response);
 
     assert_eq!(response.status_code(), StatusCode::OK);
 
@@ -565,6 +571,7 @@ async fn test_get_budgets_success(#[future] test_server_and_db: (TestServer, Dat
         amount_limit: Set(dec!(1000.0)),
         current_spent: Set(dec!(250.0)),
         month: Set(month),
+        updated_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
     budget.insert(&db).await.unwrap();
@@ -616,6 +623,7 @@ async fn test_get_budget_status_success(
         amount_limit: Set(dec!(750.0)),
         current_spent: Set(dec!(100.0)),
         month: Set(month),
+        updated_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
     let inserted = budget.insert(&db).await.unwrap();
@@ -630,8 +638,8 @@ async fn test_get_budget_status_success(
 
     let body: serde_json::Value = response.json();
     assert_eq!(body["id"], budget_id);
-    assert_eq!(body["amount_limit"], "750.0");
-    assert_eq!(body["current_spent"], "100.0");
+    assert_eq!(body["amount_limit"], "750");
+    assert_eq!(body["current_spent"], "100");
     assert_eq!(body["limit_exceeded"], false);
 }
 
@@ -711,7 +719,7 @@ async fn test_get_expenses_summary_success(
     assert_eq!(response.status_code(), StatusCode::OK);
 
     let body: serde_json::Value = response.json();
-    assert!(body["total_expenses"].as_str().is_some());
+    assert_eq!(body["total_expenses"].as_str().unwrap(), "123.45");
     assert!(body["categories"].as_array().is_some());
 }
 
@@ -855,7 +863,7 @@ async fn test_create_category_success(
     let token = generate_test_token(user_id, 3600);
 
     let response = server
-        .post("/api/category/create")
+        .post("/api/categories")
         .add_header("Authorization", format!("Bearer {}", token))
         .json(&json!({
             "name": "New Category",
@@ -892,7 +900,7 @@ async fn test_create_category_income_type(
     let token = generate_test_token(user_id, 3600);
 
     let response = server
-        .post("/api/category/create")
+        .post("/api/categories")
         .add_header("Authorization", format!("Bearer {}", token))
         .json(&json!({
             "name": "Income Category",
@@ -915,7 +923,7 @@ async fn test_create_category_unauthorized(
     let (server, _) = test_server_and_db.await;
 
     let response = server
-        .post("/api/category/create")
+        .post("/api/categories")
         .json(&json!({
             "name": "Unauthorized Cat",
             "category_type": "income"

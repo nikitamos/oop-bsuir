@@ -72,7 +72,8 @@ pub async fn register(
     request_body = LoginRequest,
     responses(
         (status = 200, description = "Login successful", body = AuthResponse),
-        (status = 401, description = "Invalid credentials", body = ErrorResponse)
+        (status = 401, description = "Invalid credentials", body = ErrorResponse),
+        (status = 500, description = "Internal server error")
     ),
     tag = "auth"
 )]
@@ -83,7 +84,11 @@ pub async fn login(
     let id = state
         .auth_service
         .login(request.email.clone(), request.password)
-        .await?;
+        .await
+        .map_err(|e| {
+            let e: AppError = e.into();
+            e.with_code(StatusCode::UNAUTHORIZED)
+        })?;
     state
         .jwt
         .generate_token(id, chrono::Duration::weeks(2).num_seconds() as u64)
@@ -330,9 +335,10 @@ pub async fn get_expenses_summary(
     Query(params): Query<AnalyticsRequest>,
 ) -> Result<Json<ExpensesSummary>, AppError> {
     if params.from >= params.to {
-        return Err(AppError(ApplicationError::BadRequest(
+        return Err(ApplicationError::BadRequest(
             "'from' date must be earlier than 'to' date".to_string(),
-        )));
+        )
+        .into());
     }
 
     let summary = state
@@ -365,14 +371,12 @@ pub async fn get_monthly_summary(
     let months_count = months.months.unwrap_or(6);
 
     if months_count == 0 {
-        return Err(AppError(ApplicationError::BadRequest(
-            "'months' must be greater than 0".to_string(),
-        )));
+        return Err(
+            ApplicationError::BadRequest("'months' must be greater than 0".to_string()).into(),
+        );
     }
     if months_count > 24 {
-        return Err(AppError(ApplicationError::BadRequest(
-            "'months' cannot exceed 24".to_string(),
-        )));
+        return Err(ApplicationError::BadRequest("'months' cannot exceed 24".to_string()).into());
     }
 
     let summaries = state
@@ -404,7 +408,7 @@ pub async fn get_categories(
 }
 #[utoipa::path(
     post,
-    path = "/api/category/create",
+    path = "/api/categories",
     responses(
         (status = 201, description="Category information", body = CategoryResponse),
         (status = 401, description = "Unauthorized", body = ErrorResponse),
@@ -417,17 +421,20 @@ pub async fn create_category(
     State(state): State<AppState>,
     AuthenticatedUser { user_id, .. }: AuthenticatedUser,
     Json(request): Json<CategoryCreateRequest>,
-) -> Result<Json<CategoryResponse>, AppError> {
+) -> Result<(StatusCode, Json<CategoryResponse>), AppError> {
     let cat_id = state
         .category_service
         .create_category(user_id, request.name.clone(), request.category_type.into())
         .await?;
-    Ok(CategoryResponse {
-        id: cat_id,
-        name: request.name,
-        category_type: request.category_type,
-    }
-    .into())
+    Ok((
+        StatusCode::CREATED,
+        CategoryResponse {
+            id: cat_id,
+            name: request.name,
+            category_type: request.category_type,
+        }
+        .into(),
+    ))
 }
 
 pub fn routes(state: AppState) -> Router {
@@ -445,7 +452,7 @@ pub fn routes(state: AppState) -> Router {
         .route("/api/budgets/{budget_id}", get(get_budget_status))
         .route("/api/analytics/expenses", get(get_expenses_summary))
         .route("/api/analytics/monthly", get(get_monthly_summary))
-        .route("/api/categories", get(get_categories));
+        .route("/api/categories", get(get_categories).post(create_category));
 
     public_routes.merge(protected_routes).with_state(state)
 }
