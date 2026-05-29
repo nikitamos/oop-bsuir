@@ -12,7 +12,7 @@ pub struct SetBudgetRequest {
     pub month: NaiveDate,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct BudgetResponse {
     pub id: i64,
     pub category_id: i64,
