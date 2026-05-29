@@ -96,7 +96,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let state = api::state::AppState::setup(repo_factory);
 
     let doc = <ApiDoc as OpenApi>::openapi();
-    let app = api::build_router(state)
+    let app = api::routes(state)
         .merge(SwaggerUi::new("/swagger/index.html").url("/api-docs/openapi.json", doc))
         .with_state(())
         .layer(TraceLayer::new_for_http());

@@ -29,6 +29,10 @@ use chrono::Datelike;
 
 pub type AuthenticatedUser = auth::UserIdExtractor;
 
+#[cfg(test)]
+#[coverage(off)]
+pub mod test;
+
 #[utoipa::path(
     post,
     path = "/api/auth/register",
@@ -426,7 +430,7 @@ pub async fn create_category(
     .into())
 }
 
-pub fn build_router(state: AppState) -> Router {
+pub fn routes(state: AppState) -> Router {
     let public_routes = Router::new()
         .route("/api/auth/register", post(register))
         .route("/api/auth/login", post(login));

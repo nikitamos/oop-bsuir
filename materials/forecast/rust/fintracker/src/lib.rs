@@ -1,3 +1,4 @@
+#![feature(coverage_attribute)]
 pub mod shared {
     use chrono::{Datelike, NaiveDate, NaiveDateTime, Utc};
 
