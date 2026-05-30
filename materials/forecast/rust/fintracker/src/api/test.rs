@@ -26,7 +26,7 @@ use crate::{
 };
 
 const TEST_DB: &str = "sqlite::memory:";
-const TEST_SECRET: &[u8] = b"dd"; // Must match AppState::setup
+const TEST_SECRET: &str = "c96e54ab4eafcdb49a7a393df998e2c0452f9e8d48f90e9d20d44f099c1bbd70";
 
 // ─────────────────────────────────────────────────────────────
 // Fixtures
@@ -50,7 +50,7 @@ async fn test_server_and_db() -> (TestServer, DatabaseConnection) {
 
     // 2. Create repository factory and app state
     let repo = SeaOrmRepositoryFactory::new(db.clone());
-    let app_state = AppState::setup(repo);
+    let app_state = AppState::setup(repo, Some(TEST_SECRET));
 
     // 3. Build router and test server
     let router = routes(app_state).layer(TraceLayer::new_for_http());
@@ -75,7 +75,7 @@ fn generate_test_token(user_id: i64, expires_in_secs: u64) -> String {
         + expires_in_secs as usize;
 
     let claims = Claims { user_id, exp };
-    let encoding_key = jsonwebtoken::EncodingKey::from_secret(TEST_SECRET);
+    let encoding_key = jsonwebtoken::EncodingKey::from_secret(TEST_SECRET.as_bytes());
 
     encode(&Header::default(), &claims, &encoding_key).unwrap()
 }
@@ -470,11 +470,10 @@ async fn test_get_transactions_success(
     let response = server
         .get(&format!(
             "/api/transactions?account_id={}&from={}&to={}",
-            acc_id, from.to_rfc3339(), to.to_rfc3339()
+            acc_id, from.format("%Y-%m-%dT%H:%M:%S"), to.format("%Y-%m-%dT%H:%M:%S")
         ))
         .add_header("Authorization", format!("Bearer {}", token))
         .await;
-    tracing::error!(?response);
 
     assert_eq!(response.status_code(), StatusCode::OK);
 

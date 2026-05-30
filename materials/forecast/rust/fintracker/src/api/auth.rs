@@ -32,6 +32,10 @@ impl JwtState {
             validation,
         }
     }
+    pub fn from_env() -> Self {
+        let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET environment variable not set");
+        Self::from_secret(secret.as_bytes())
+    }
     pub fn generate_token(
         &self,
         user_id: i64,

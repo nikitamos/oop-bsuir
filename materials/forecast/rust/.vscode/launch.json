@@ -153,7 +153,7 @@
                 }
             },
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}/fintracker"
         },
         {
             "type": "lldb",

@@ -5,7 +5,9 @@ use utoipa::ToSchema;
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct AnalyticsRequest {
+    #[schema(example = "2026-05-25")]
     pub from: NaiveDate,
+    #[schema(example = "2026-06-10")]
     pub to: NaiveDate,
 }
 

@@ -35,7 +35,8 @@ impl IntoResponse for AppError {
             }
             ApplicationError::Conflict(msg) => self.code_msg(StatusCode::CONFLICT, msg.clone()),
             ApplicationError::Internal(msg) => {
-                self.code_msg(StatusCode::INTERNAL_SERVER_ERROR, msg.clone())
+                tracing::error!("Error processing the request: {msg}");
+                self.code_msg(StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
             }
             ApplicationError::BadAuthToken(msg) => {
                 self.code_msg(StatusCode::BAD_REQUEST, msg.clone())

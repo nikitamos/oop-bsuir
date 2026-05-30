@@ -81,6 +81,7 @@ impl TransactionController {
                 .find_by_user_cat_month(account.user_id, category_id, current_month)
                 .await?
             {
+                tracing::debug!(message="expense recording", ?amount);
                 budget.record_expense(amount);
                 self.budget_repo
                     .update_spent(budget.id, budget.current_spent)

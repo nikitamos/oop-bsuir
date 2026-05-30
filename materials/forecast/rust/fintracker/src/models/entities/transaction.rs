@@ -1,7 +1,6 @@
 use sea_orm::entity::prelude::*;
 use rust_decimal::Decimal;
 
-/// Тип транзакции — дублирует логику домена, но для БД
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(10))")]
 pub enum TransactionType {
@@ -21,7 +20,6 @@ pub struct Model {
 
     pub category_id: i64,
 
-    /// Сумма в минимальных единицах валюты
     #[sea_orm(column_type = "Decimal(Some((16, 2)))")]
     pub amount: Decimal,
 

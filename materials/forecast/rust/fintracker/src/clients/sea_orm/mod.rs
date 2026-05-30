@@ -6,7 +6,7 @@ use crate::models::{
 mod conversion;
 mod error {
     use crate::shared::error::{ApplicationError as AppError, Result};
-    use sea_orm::DbErr;
+    use sea_orm::{DbErr, SqlErr};
 
     pub trait DbResultExt<T> {
         fn map_db_err(self) -> Result<T>;
@@ -14,9 +14,16 @@ mod error {
 
     impl<T> DbResultExt<T> for std::result::Result<T, DbErr> {
         fn map_db_err(self) -> Result<T> {
-            self.map_err(|e| match e {
-                DbErr::RecordNotFound(_) => AppError::NotFound("entry not found".to_string()),
-                _ => AppError::Internal(format!("DB error: {}", e)),
+            self.map_err(|e| {
+                if let Some(SqlErr::ForeignKeyConstraintViolation(_)) = e.sql_err() {
+                    return AppError::NotFound("No such entity".to_string());
+                } else if let Some(SqlErr::UniqueConstraintViolation(_)) = e.sql_err() {
+                    return AppError::Conflict("Such entity already exists".to_string());
+                }
+                match e {
+                    DbErr::RecordNotFound(_) => AppError::NotFound("entry not found".to_string()),
+                    _ => AppError::Internal(format!("DB error: {}", e)),
+                }
             })
         }
     }

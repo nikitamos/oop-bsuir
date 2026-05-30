@@ -1,10 +1,6 @@
 use axum::extract::FromRef;
 
-use crate::{
-    api::auth::JwtState,
-    controllers::{prelude::*},
-    repositories::RepositoryFactory,
-};
+use crate::{api::auth::JwtState, controllers::prelude::*, repositories::RepositoryFactory};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -25,14 +21,11 @@ impl FromRef<AppState> for JwtState {
 }
 
 impl AppState {
-    pub fn setup<R: RepositoryFactory>(repo_factory: R) -> Self {
+    pub fn setup<R: RepositoryFactory>(repo_factory: R, jwt_secret: Option<&str>) -> Self {
         let (user, account, category, transaction, budget) = repo_factory.all_dyn();
 
         Self {
-            auth_service: Arc::new(AuthController::new(
-                Arc::clone(&user),
-                "jwt_secret".to_string(),
-            )),
+            auth_service: Arc::new(AuthController::new(Arc::clone(&user))),
             account_service: Arc::new(AccountController::new(Arc::clone(&account))),
             transaction_service: Arc::new(TransactionController::new(
                 Arc::clone(&transaction),
@@ -50,7 +43,9 @@ impl AppState {
                 Arc::clone(&category),
             )),
             category_service: Arc::new(CategoryController::new(budget, category)),
-            jwt: JwtState::from_secret(b"dd"),
+            jwt: jwt_secret
+                .map(|s| JwtState::from_secret(s.as_bytes()))
+                .unwrap_or_else(|| JwtState::from_env()),
         }
     }
 }

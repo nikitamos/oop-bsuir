@@ -3,6 +3,7 @@ pub mod shared {
     use chrono::{Datelike, NaiveDate, NaiveDateTime, Utc};
 
     pub mod error {
+        #[derive(Debug)]
         pub enum ApplicationError {
             NotFound(String),
             BadRequest(String),

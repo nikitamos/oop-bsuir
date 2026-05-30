@@ -10,6 +10,7 @@ axum.workspace = true
 axum-test = "20.1.0"
 bcrypt = "0.19.1"
 chrono = { workspace = true, features = ["serde"] }
+dotenvy = "0.15.7"
 jsonwebtoken = { version = "10.4.0", features = ["rust_crypto"] }
 rstest.workspace = true
 rust_decimal = { workspace = true }

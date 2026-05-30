@@ -1019,6 +1019,7 @@ dependencies = [
  "axum-test",
  "bcrypt",
  "chrono",
+ "dotenvy",
  "jsonwebtoken",
  "rstest",
  "rust_decimal",

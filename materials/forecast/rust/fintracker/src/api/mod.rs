@@ -65,7 +65,6 @@ pub async fn register(
     ))
 }
 
-/// Аутентификация пользователя
 #[utoipa::path(
     post,
     path = "/api/auth/login",
@@ -159,7 +158,6 @@ pub async fn get_accounts(
 }
 
 // api/transactions.rs
-/// Создание новой транзакции
 #[utoipa::path(
     post,
     path = "/api/transactions",
@@ -202,9 +200,9 @@ pub async fn create_transaction(
     get,
     path = "/api/transactions",
     params(
-        ("account_id" = i64, Query, description = "ID счёта"),
-        ("from" = String, Query, description = "Дата начала периода (ISO 8601)"),
-        ("to" = String, Query, description = "Дата конца периода (ISO 8601)")
+        ("account_id" = i64, Query),
+        ("from" = String, Query, description = "Period start time (RFC 3339)"),
+        ("to" = String, Query, description = "Period end time (RFC 3339)")
     ),
     responses(
         (status = 200, description = "List of transactions", body = Vec<TransactionResponse>),
@@ -264,7 +262,7 @@ pub async fn set_budget(
     get,
     path = "/api/budgets",
     params(
-        ("month" = String, Query, description = "Месяц в формате YYYY-MM-DD (первое число)")
+        ("month" = String, Query, description = "Month in YYYY-MM-DD format")
     ),
     responses(
         (status = 200, description = "List of budgets", body = Vec<BudgetResponse>),
@@ -292,7 +290,7 @@ pub async fn get_budgets(
     get,
     path = "/api/budgets/{budget_id}",
     params(
-        ("budget_id" = i64, Path, description = "ID бюджета")
+        ("budget_id" = i64, Path)
     ),
     responses(
         (status = 200, description = "Budget details", body = BudgetResponse),
@@ -319,8 +317,8 @@ pub async fn get_budget_status(
     get,
     path = "/api/analytics/expenses",
     params(
-        ("from" = String, Query, description = "Дата начала периода (ISO 8601)"),
-        ("to" = String, Query, description = "Дата конца периода (ISO 8601)")
+        ("from" = String, Query, description = "YYYY-MM-DD date"),
+        ("to" = String, Query, description = "YYYY-MM-DD date")
     ),
     responses(
         (status = 200, description = "Expenses summary", body = ExpensesSummary),
@@ -349,12 +347,11 @@ pub async fn get_expenses_summary(
     Ok(Json(summary))
 }
 
-/// Сравнение доходов и расходов по месяцам
 #[utoipa::path(
     get,
     path = "/api/analytics/monthly",
     params(
-        ("months" = Option<u32>, Query, description = "Количество месяцев (по умолчанию 6)")
+        ("months" = Option<u32>, Query, description = "Month count back from current month")
     ),
     responses(
         (status = 200, description = "Monthly income vs expenses", body = Vec<MonthlySummary>),

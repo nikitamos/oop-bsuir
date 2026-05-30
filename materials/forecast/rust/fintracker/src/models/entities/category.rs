@@ -1,6 +1,5 @@
 use sea_orm::entity::prelude::*;
 
-/// Тип категории совпадает с типом транзакции
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(10))")]
 pub enum CategoryType {

@@ -28,18 +28,8 @@ use fintracker::{api, clients};
         api::get_expenses_summary,
         api::get_monthly_summary,
         api::get_categories,
+        api::create_category
     ),
-// components(
-//     schemas(
-//         RegisterRequest, LoginRequest, AuthResponse,
-//         CreateAccountRequest, AccountResponse,
-//         CreateTransactionRequest, TransactionResponse,
-//         WarningResponse<TransactionResponse>,
-//         SetBudgetRequest, BudgetResponse,
-//         ExpensesSummary, CategorySummary, MonthlySummary,
-//         ErrorResponse,  CategoryResponse
-//     )
-// ),
     modifiers(&SecurityAddon),
     tags(
         (name = "auth", description = "Authentication endpoints"),
@@ -89,15 +79,19 @@ fn setup_tracing() {
 async fn main() -> Result<(), anyhow::Error> {
     setup_tracing();
 
-    let db = Database::connect("sqlite://db.sqlite3?mode=rwc").await?;
+    dotenvy::dotenv()?;
+    let db = Database::connect(
+        std::env::var("DB_CONNECTION").expect("DB_CONNECTION environment variable not set"),
+    )
+    .await?;
     setup_db(&db).await?;
     let repo_factory = SeaOrmRepositoryFactory::new(db);
 
-    let state = api::state::AppState::setup(repo_factory);
+    let state = api::state::AppState::setup(repo_factory, None);
 
     let doc = <ApiDoc as OpenApi>::openapi();
     let app = api::routes(state)
-        .merge(SwaggerUi::new("/swagger/index.html").url("/api-docs/openapi.json", doc))
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", doc))
         .with_state(())
         .layer(TraceLayer::new_for_http());
 

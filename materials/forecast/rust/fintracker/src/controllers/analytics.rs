@@ -42,32 +42,26 @@ impl<DT: DateTimeProvider> AnalyticsController<DT> {
         from: NaiveDate,
         to: NaiveDate,
     ) -> Result<ExpensesSummary> {
-        // Валидация: from должен быть раньше to
         if from >= to {
             return Err(ApplicationError::BadRequest(
                 "'from' date must be earlier than 'to' date".to_string(),
             ));
         }
 
-        // Получаем все категории для отображения названий
         let categories = self.category_repo.find_all().await?;
         let category_map: HashMap<i64, String> =
             categories.into_iter().map(|c| (c.id, c.name)).collect();
 
-        // Получаем все счета пользователя и транзакции по ним
-        // Примечание: TransactionRepository должен поддерживать поиск по user_id
         let transactions = self
             .transaction_repo
             .find_by_user_and_period(user_id, from, to)
             .await?;
 
-        // Фильтруем только расходы
         let expenses: Vec<&Transaction> = transactions
             .iter()
             .filter(|t| matches!(t.transaction_type, TransactionType::Expense))
             .collect();
 
-        // Группируем расходы по категориям
         let mut category_totals: HashMap<i64, Decimal> = HashMap::new();
         let mut total_expenses = Decimal::ZERO;
 
@@ -123,7 +117,6 @@ impl<DT: DateTimeProvider> AnalyticsController<DT> {
         self.get_income_vs_expenses(user_id, months).await
     }
 
-    /// Доходы vs Расходы по месяцам
     pub async fn get_income_vs_expenses(
         &self,
         user_id: i64,
@@ -155,7 +148,6 @@ impl<DT: DateTimeProvider> AnalyticsController<DT> {
                 ApplicationError::Internal("Failed to calculate month end".to_string())
             })?;
 
-            // Получаем транзакции за месяц
             let transactions = self
                 .transaction_repo
                 .find_by_user_and_period(user_id, month_start, month_end)
@@ -192,67 +184,4 @@ impl<DT: DateTimeProvider> AnalyticsController<DT> {
 
         Ok(monthly_summaries)
     }
-    /*
-    pub async fn get_category_trend(
-        &self,
-        user_id: i64,
-        category_id: i64,
-        months: u32,
-    ) -> Result<Vec<Decimal>> {
-        let monthly_summaries = self.get_monthly_summary(user_id, months).await?;
-
-        // Для этого метода потребовался бы дополнительный запрос к репозиторию
-        // за расходами по конкретной категории по месяцам
-        // Оставлен как заглушка для будущей реализации
-
-        let mut trends = Vec::new();
-        let today = self.dt.today();
-
-        for i in 0..months {
-            let target_month = today
-                .with_day(1)
-                .and_then(|d| {
-                    let month_diff = (months - 1 - i) as i32;
-                    if month_diff == 0 {
-                        Some(d)
-                    } else {
-                        // Упрощенный расчет для примера
-                        NaiveDate::from_ymd_opt(
-                            d.year(),
-                            ((d.month() as i32 + 12 - month_diff as i32) % 12) as u32,
-                            1,
-                        )
-                    }
-                })
-                .unwrap_or(today);
-
-            let month_start = target_month.with_day(1).unwrap_or(target_month);
-            let month_end = if month_start.month() == 12 {
-                NaiveDate::from_ymd_opt(month_start.year() + 1, 1, 1).and_then(|d| d.pred_opt())
-            } else {
-                NaiveDate::from_ymd_opt(month_start.year(), month_start.month() + 1, 1)
-                    .and_then(|d| d.pred_opt())
-            }
-            .unwrap_or(month_start);
-
-            let transactions = self
-                .transaction_repo
-                .find_by_user_and_period(user_id, month_start, month_end)
-                .await?;
-
-            let total: Decimal = transactions
-                .iter()
-                .filter(|t| {
-                    t.category_id == category_id
-                        && matches!(t.transaction_type, TransactionType::Expense)
-                })
-                .map(|t| t.amount)
-                .sum();
-
-            trends.push((total * dec!(100.0)).round() / dec!(100.0));
-        }
-
-        Ok(trends)
-    }
-    */
 }
